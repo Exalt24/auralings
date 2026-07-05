@@ -17,3 +17,7 @@ node_modules/
 
 .vercel
 .env*.local
+
+# Godot re-imports the exported pngs since public/ sits inside the project;
+# those sidecars are noise, not part of the deployed site.
+public/**/*.import
