@@ -17,6 +17,32 @@ func set_creature(d: Dictionary) -> void:
 	data = d
 	queue_redraw()
 
+# The furthest any drawn part reaches from the origin, in LOCAL (unscaled) units:
+# body bulge (x aspect), horns, and the rare aura. Used to normalize footprint so
+# no creature ever bleeds into a neighbour's space, whatever its random traits.
+func content_extent() -> float:
+	if data.is_empty():
+		return 1.0
+	var r: float = data["body_radius"]
+	var asp: float = data.get("aspect_y", 0.94)
+	var harm_sum := 0.0
+	for h in data["harmonics"]:
+		harm_sum += abs(float(h["a"]))
+	var reach: float = r * (1.0 + harm_sum) * maxf(asp, 1.0)   # tallest body axis
+	reach = maxf(reach, r * 1.10)                              # feet + shadow baseline
+	if data.get("has_horns", false):
+		reach = maxf(reach, r * 0.72 + float(data.get("horn_len", 0.0)) + 12.0)
+	if data.get("rare", false):
+		reach = maxf(reach, r * 1.42)                          # aura rings + sparkles
+	return reach
+
+# Scale this view so its whole silhouette fits within `target` on-screen radius.
+func fit_to(target: float) -> void:
+	var e := content_extent()
+	if e > 0.0:
+		var s := target / e
+		scale = Vector2(s, s)
+
 func flash_hit() -> void:
 	_hit_flash = 1.0
 
