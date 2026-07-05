@@ -87,23 +87,27 @@ func _process(delta: float) -> void:
 func _build() -> void:
 	queue_redraw()
 
-	# --- enemy (top), faces left; its info sits top-left ---
+	# Each creature and its info panel sit on OPPOSITE horizontal sides so the panel
+	# never overlaps the body: enemy body right / panel left, player body left /
+	# panel right. Sizes are tuned so nothing collides with the panels or the log.
+
+	# --- enemy (top), body right, faces left; panel top-left ---
 	e_view = CreatureViewScript.new()
-	e_view.scale = Vector2(0.82, 0.82)
+	e_view.scale = Vector2(0.80, 0.80)
 	e_view.facing = -1.0
-	e_view.position = Vector2(W * 0.66, 360)
+	e_view.position = Vector2(W * 0.70, 346)
 	e_view.set_creature(enemy)
 	world.add_child(e_view)
-	_info_panel(Vector2(46, 120), enemy, false)
+	_info_panel(Vector2(40, 104), enemy, false)
 
-	# --- player (bottom), faces right; its info sits bottom-right ---
+	# --- player (bottom), body left, faces right; panel mid-right ---
 	p_view = CreatureViewScript.new()
-	p_view.scale = Vector2(0.92, 0.92)
+	p_view.scale = Vector2(0.82, 0.82)
 	p_view.facing = 1.0
-	p_view.position = Vector2(W * 0.34, 860)
+	p_view.position = Vector2(W * 0.30, 812)
 	p_view.set_creature(player)
 	world.add_child(p_view)
-	_info_panel(Vector2(W - 366, 700), player, true)
+	_info_panel(Vector2(W - 340, 700), player, true)
 
 	# --- action log ---
 	log_label = Label.new()
@@ -129,19 +133,20 @@ func _info_panel(pos: Vector2, c: Dictionary, is_player: bool) -> void:
 	var card := ColorRect.new()
 	card.color = Color(1, 1, 1, 0.08)
 	card.position = pos
-	card.size = Vector2(320, 96)
+	card.size = Vector2(300, 96)
 	ui.add_child(card)
 
 	var name_l := Label.new()
 	name_l.position = pos + Vector2(16, 8)
-	name_l.add_theme_font_size_override("font_size", 28)
+	name_l.size = Vector2(268, 34)
+	name_l.add_theme_font_size_override("font_size", 26)
 	name_l.add_theme_color_override("font_color", Color("ffffff"))
 	name_l.text = "%s  ·  %s" % [c["name"], String(c["element"]).capitalize()]
 	ui.add_child(name_l)
 
 	# hp bar: dark back + colored fill
 	var bar_pos := pos + Vector2(16, 50)
-	var bar_w := 288.0
+	var bar_w := 268.0
 	var back := ColorRect.new()
 	back.color = Color(0, 0, 0, 0.4)
 	back.position = bar_pos

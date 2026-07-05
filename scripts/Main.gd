@@ -87,32 +87,34 @@ func _build_ui() -> void:
 	# info card
 	var card := ColorRect.new()
 	card.color = Color(1, 1, 1, 0.10)
-	card.position = Vector2(60, 720)
-	card.size = Vector2(W - 120, 300)
+	card.position = Vector2(60, 716)
+	card.size = Vector2(W - 120, 284)
 	summon_layer.add_child(card)
 
-	name_label = _mk_label(Vector2(90, 742), 40, Color("ffffff"))
-	sub_label = _mk_label(Vector2(90, 790), 20, Color("c9b8e8"))
-	lore_label = _mk_label(Vector2(90, 822), 21, Color("e8dcff"))
+	name_label = _mk_label(Vector2(90, 728), 40, Color("ffffff"))
+	sub_label = _mk_label(Vector2(90, 774), 20, Color("c9b8e8"))
+	lore_label = _mk_label(Vector2(90, 804), 21, Color("e8dcff"))
 	lore_label.size = Vector2(W - 180, 70)
 	lore_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	stat_label = _mk_label(Vector2(90, 908), 26, Color("ffe9c7"))
-	ability_label = _mk_label(Vector2(90, 952), 22, Color("9ff0d0"))
-	ability_label.size = Vector2(W - 180, 60)
+	stat_label = _mk_label(Vector2(90, 890), 26, Color("ffe9c7"))
+	ability_label = _mk_label(Vector2(90, 926), 22, Color("9ff0d0"))
+	ability_label.size = Vector2(W - 180, 56)
 	ability_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 
-	# seed line + share (share-a-seed): a link that re-summons this exact creature
+	# seed line + share (share-a-seed): a link that re-summons this exact creature.
+	# sits in its own row with a clear gap above (card ends at 1000) and below.
 	seed_label = Label.new()
-	seed_label.position = Vector2(90, 1030)
-	seed_label.size = Vector2(300, 30)
+	seed_label.position = Vector2(90, 1026)
+	seed_label.size = Vector2(300, 34)
+	seed_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	seed_label.add_theme_font_size_override("font_size", 18)
 	seed_label.add_theme_color_override("font_color", Color("9a8cc0"))
 	summon_layer.add_child(seed_label)
 
 	share_btn = Button.new()
 	share_btn.text = "SHARE"
-	share_btn.position = Vector2(W - 215, 1022)
-	share_btn.size = Vector2(155, 46)
+	share_btn.position = Vector2(W - 220, 1018)
+	share_btn.size = Vector2(160, 50)
 	share_btn.add_theme_font_size_override("font_size", 22)
 	share_btn.pressed.connect(_share_seed)
 	summon_layer.add_child(share_btn)
@@ -120,16 +122,16 @@ func _build_ui() -> void:
 	# summon + battle buttons, side by side
 	summon_btn = Button.new()
 	summon_btn.text = "SUMMON"
-	summon_btn.position = Vector2(55, 1082)
-	summon_btn.size = Vector2(290, 84)
+	summon_btn.position = Vector2(60, 1086)
+	summon_btn.size = Vector2(288, 84)
 	summon_btn.add_theme_font_size_override("font_size", 32)
 	summon_btn.pressed.connect(_summon.bind(-1))
 	summon_layer.add_child(summon_btn)
 
 	battle_btn = Button.new()
 	battle_btn.text = "BATTLE"
-	battle_btn.position = Vector2(W - 345, 1082)
-	battle_btn.size = Vector2(290, 84)
+	battle_btn.position = Vector2(W - 348, 1086)
+	battle_btn.size = Vector2(288, 84)
 	battle_btn.add_theme_font_size_override("font_size", 32)
 	battle_btn.add_theme_color_override("font_color", Color("9ff0d0"))
 	battle_btn.pressed.connect(_enter_battle)
@@ -138,8 +140,8 @@ func _build_ui() -> void:
 	# bestiary of everything summoned so far
 	bestiary_btn = Button.new()
 	bestiary_btn.text = "BESTIARY"
-	bestiary_btn.position = Vector2(55, 1180)
-	bestiary_btn.size = Vector2(W - 110, 74)
+	bestiary_btn.position = Vector2(60, 1188)
+	bestiary_btn.size = Vector2(W - 120, 74)
 	bestiary_btn.add_theme_font_size_override("font_size", 30)
 	bestiary_btn.add_theme_color_override("font_color", Color("ffd7a8"))
 	bestiary_btn.pressed.connect(_open_collection)
