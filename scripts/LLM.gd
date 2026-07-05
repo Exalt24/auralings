@@ -39,13 +39,19 @@ func has_key() -> bool:
 func request_identity(c: Dictionary) -> void:
 	_pending_seed = int(c["seed"])
 	if _is_web:
-		# hand the traits to the proxy; it builds the prompt + injects the key
+		# hand the traits to the proxy; it builds the prompt + injects the key.
+		# Godot's HTTPRequest needs an ABSOLUTE url even on web, so resolve the
+		# page origin at runtime and prepend it to the same-origin proxy path.
 		var payload := {
 			"element": c["element"], "archetype": c["archetype"],
 			"hp": int(c["hp"]), "atk": int(c["atk"]), "name": c["name"],
 		}
+		var origin := ""
+		var loc = JavaScriptBridge.eval("window.location.origin", true)
+		if typeof(loc) == TYPE_STRING and String(loc).begins_with("http"):
+			origin = String(loc)
 		var headers := ["Content-Type: application/json"]
-		var err := _http.request(PROXY_ENDPOINT, headers, HTTPClient.METHOD_POST, JSON.stringify(payload))
+		var err := _http.request(origin + PROXY_ENDPOINT, headers, HTTPClient.METHOD_POST, JSON.stringify(payload))
 		if err != OK:
 			identity_ready.emit(_pending_seed, {})
 		return

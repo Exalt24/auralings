@@ -14,3 +14,6 @@ node_modules/
 
 # NOTE: public/ (the exported web build) and export_presets.cfg ARE committed
 # on purpose — Vercel serves public/ as the static site.
+
+.vercel
+.env*.local
