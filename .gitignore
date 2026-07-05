@@ -1,0 +1,16 @@
+# Godot editor cache
+.godot/
+
+# secrets — API keys NEVER get committed or exported (Groq key lives here for
+# desktop dev; the web build uses the Vercel /api/summon proxy instead)
+secrets/
+
+# dev screenshots
+_shots/
+
+# node / vercel
+node_modules/
+.vercel/
+
+# NOTE: public/ (the exported web build) and export_presets.cfg ARE committed
+# on purpose — Vercel serves public/ as the static site.

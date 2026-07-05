@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://auralings_capture_battle"]
+
+[ext_resource type="Script" path="res://tools/capture_battle.gd" id="1_capb"]
+
+[node name="CaptureBattle" type="Node"]
+script = ExtResource("1_capb")
