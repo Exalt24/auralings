@@ -144,7 +144,8 @@ func _blob_points(r: float) -> PackedVector2Array:
 		for h in harm:
 			m += float(h["a"]) * sin(ang * float(h["f"]) + float(h["p"]))
 		var rr := r * m
-		out.append(Vector2(cos(ang) * rr, sin(ang) * rr * 0.94))
+		var asp: float = data.get("aspect_y", 0.94)
+		out.append(Vector2(cos(ang) * rr, sin(ang) * rr * asp))
 	return out
 
 func _ellipse(center: Vector2, rx: float, ry: float, col: Color) -> void:

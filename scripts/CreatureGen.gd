@@ -10,6 +10,7 @@ const Pal = preload("res://scripts/Palettes.gd")
 const SYL_A := ["mo", "lu", "pi", "za", "no", "fi", "ku", "ta", "vy", "sha", "bo", "we"]
 const SYL_B := ["ru", "mi", "la", "po", "nu", "ki", "sa", "to", "fu", "byn", "lo", "qua"]
 const ARCHETYPES := ["Sprout", "Guardian", "Trickster", "Wanderer", "Ember", "Sage", "Brawler", "Dreamer"]
+const BODY_TYPES := ["round", "round", "tall", "wide", "teardrop"]
 
 static func generate(seed_val: int) -> Dictionary:
 	var rng := RandomNumberGenerator.new()
@@ -20,14 +21,26 @@ static func generate(seed_val: int) -> Dictionary:
 	# smooth blob silhouette from a few low-frequency harmonics. Summing 3 gentle
 	# sine lobes around the circle gives an organic potato shape, NOT a spiky star
 	# (independent per-vertex noise is the classic slop tell).
+	# A body_type picks the overall proportions (round / tall / wide / teardrop) so
+	# creatures read as visibly different builds, still all smooth.
+	var body_type: String = BODY_TYPES[rng.randi() % BODY_TYPES.size()]
+	var aspect_y := 0.94
+	match body_type:
+		"tall": aspect_y = 1.16
+		"wide": aspect_y = 0.72
+		"teardrop": aspect_y = 0.98
+
 	var harmonics := []
 	var freqs := [2, 3, 3, 4]
 	for k in 3:
 		harmonics.append({
 			"f": freqs[rng.randi() % freqs.size()],
-			"a": rng.randf_range(0.03, 0.08),
+			"a": rng.randf_range(0.03, 0.07),
 			"p": rng.randf_range(0.0, TAU),
 		})
+	# teardrop: one f=1 lobe biased to the bottom makes a pear/egg build
+	if body_type == "teardrop":
+		harmonics.append({"f": 1, "a": 0.10, "p": 0.0})
 
 	var name: String = (SYL_A[rng.randi() % SYL_A.size()] + SYL_B[rng.randi() % SYL_B.size()])
 	name = name.substr(0, 1).to_upper() + name.substr(1)
@@ -54,6 +67,8 @@ static func generate(seed_val: int) -> Dictionary:
 		"ability_name": _ability_name(rng),
 		"lore": "",  # LLM fills this later
 		# --- visual traits ---
+		"body_type": body_type,
+		"aspect_y": aspect_y,
 		"body_radius": rng.randf_range(150.0, 190.0),
 		"squash": rng.randf_range(0.9, 1.12),
 		"harmonics": harmonics,
