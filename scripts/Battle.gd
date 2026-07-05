@@ -10,6 +10,8 @@ signal battle_over(player_won: bool)
 
 const CreatureViewScript = preload("res://scripts/CreatureView.gd")
 const CreatureGenScript = preload("res://scripts/CreatureGen.gd")
+const Fx = preload("res://scripts/Fx.gd")
+const Pal = preload("res://scripts/Palettes.gd")
 
 const W := 720
 const H := 1280
@@ -250,6 +252,11 @@ func _strike(attacker: Dictionary, defender: Dictionary, player_is_attacker: boo
 		log_label.text += "  It's super effective!"
 	elif type_mult < 1.0:
 		log_label.text += "  It's resisted…"
+
+	# knockout burst, tinted to the fainting creature's element
+	var target_dead := enemy_hp <= 0 if player_is_attacker else player_hp <= 0
+	if target_dead:
+		Fx.burst(world, target_view.position, Pal.get_palette(defender["element"])["accent"], 48, 360.0)
 
 	await get_tree().create_timer(0.45).timeout
 

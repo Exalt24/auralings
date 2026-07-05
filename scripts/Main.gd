@@ -8,6 +8,8 @@ const CreatureViewScript = preload("res://scripts/CreatureView.gd")
 const CreatureGenScript = preload("res://scripts/CreatureGen.gd")
 const LLMScript = preload("res://scripts/LLM.gd")
 const BattleScript = preload("res://scripts/Battle.gd")
+const Fx = preload("res://scripts/Fx.gd")
+const Pal = preload("res://scripts/Palettes.gd")
 
 const W := 720
 const H := 1280
@@ -125,9 +127,13 @@ func _summon() -> void:
 	current_creature = c
 	creature_view.set_creature(c)
 	creature_view.flash_hit()
+	# summon spark burst, tinted by the creature's element (brighter for rares)
+	var pal: Dictionary = Pal.get_palette(c["element"])
+	Fx.burst(summon_layer, creature_view.position, pal["accent"], (40 if c.get("rare", false) else 26))
 	# show the body + procedural fallback instantly; the LLM enriches the words
 	name_label.text = c["name"]
-	sub_label.text = "%s  ·  %s" % [String(c["element"]).capitalize(), c["archetype"]]
+	var prefix := "RARE  ·  " if c.get("rare", false) else ""
+	sub_label.text = "%s%s  ·  %s" % [prefix, String(c["element"]).capitalize(), c["archetype"]]
 	stat_label.text = "HP %d      ATK %d" % [c["hp"], c["atk"]]
 	ability_label.text = "*" + c["ability_name"]
 	if llm.has_key():

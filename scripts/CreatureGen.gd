@@ -35,11 +35,19 @@ static func generate(seed_val: int) -> Dictionary:
 	var hp := rng.randi_range(60, 120)
 	var atk := rng.randi_range(12, 26)
 
+	# ~12% of summons are "radiant" rares: a glowing aura + a stat bump. Gives the
+	# collector-summon loop a jackpot moment without any extra art.
+	var rare := rng.randf() < 0.12
+	if rare:
+		hp += 25
+		atk += 6
+
 	return {
 		"seed": seed_val,
 		"name": name,
 		"element": element,
-		"archetype": ARCHETYPES[rng.randi() % ARCHETYPES.size()],
+		"archetype": ("Radiant" if rare else ARCHETYPES[rng.randi() % ARCHETYPES.size()]),
+		"rare": rare,
 		"hp": hp,
 		"max_hp": hp,
 		"atk": atk,

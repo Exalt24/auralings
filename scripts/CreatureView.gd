@@ -36,6 +36,24 @@ func _draw() -> void:
 	var pal: Dictionary = Pal.get_palette(data["element"])
 	var r: float = data["body_radius"]
 
+	# ground contact shadow (unscaled, sits under the creature so it feels planted)
+	var bob0 := sin(_phase * 2.2) * 6.0
+	var shadow_squish := 1.0 + bob0 * 0.012
+	_ellipse(Vector2(0, r * 1.06), r * 0.72 * shadow_squish, r * 0.16, Color(0, 0, 0, 0.22))
+
+	# radiant rare: glowing aura rings + orbiting sparkles behind the body
+	if data.get("rare", false):
+		var acc: Color = pal["accent"]
+		var pulse := 0.5 + 0.5 * sin(_phase * 3.0)
+		for i in 3:
+			var rr := r * (1.12 + i * 0.13)
+			var a := 0.14 * (1.0 - i * 0.28) * (0.6 + 0.4 * pulse)
+			draw_arc(Vector2.ZERO, rr, 0, TAU, 48, Color(acc.r, acc.g, acc.b, a), 3.0 + i)
+		for i in 6:
+			var ang := _phase * 0.9 + TAU * float(i) / 6.0
+			var sp := Vector2(cos(ang), sin(ang)) * r * 1.28
+			draw_circle(sp, 4.0 + 2.0 * pulse, Color(acc.r, acc.g, acc.b, 0.85))
+
 	# breathing: squash-and-stretch around a fixed baseline
 	var breathe := sin(_phase * 2.2) * 0.035
 	var sx: float = data["squash"] * (1.0 - breathe) * facing
@@ -138,10 +156,18 @@ func _ellipse(center: Vector2, rx: float, ry: float, col: Color) -> void:
 	draw_colored_polygon(pts, col)
 
 func _horn(base: Vector2, lean: float, length: float, col: Color, edge: Color) -> void:
+	# wider base + a short blunt tip (a 4-point shape, not a needle) so horns read
+	# as sturdy little nubs instead of thin spikes
 	var tip := base + Vector2(sin(lean) * length * 0.5, -length)
-	var w := 16.0
+	var w := 24.0
+	var tw := 7.0  # tip half-width (blunt, not a point)
+	var tdir := (tip - base).normalized()
+	var perp := Vector2(-tdir.y, tdir.x)
 	var pts := PackedVector2Array([
-		base + Vector2(-w, 6), base + Vector2(w, 6), tip
+		base + Vector2(-w, 6), base + Vector2(w, 6),
+		tip + perp * tw, tip - perp * tw,
 	])
 	draw_colored_polygon(pts, col)
-	draw_polyline(PackedVector2Array([base + Vector2(-w, 6), tip, base + Vector2(w, 6)]), edge, 3.0)
+	draw_polyline(PackedVector2Array([
+		base + Vector2(-w, 6), tip - perp * tw, tip + perp * tw, base + Vector2(w, 6)
+	]), edge, 3.0)
