@@ -10,9 +10,11 @@ const LLMScript = preload("res://scripts/LLM.gd")
 const BattleScript = preload("res://scripts/Battle.gd")
 const Fx = preload("res://scripts/Fx.gd")
 const Pal = preload("res://scripts/Palettes.gd")
+const CollectionScript = preload("res://scripts/Collection.gd")
 
 const W := 720
 const H := 1280
+const SAVE_PATH := "user://collection.json"
 
 var summon_layer: Node2D   # all summon UI lives here so battle can hide it
 var creature_view
@@ -21,18 +23,30 @@ var sub_label: Label
 var lore_label: Label
 var stat_label: Label
 var ability_label: Label
+var seed_label: Label
+var toast_label: Label
 var summon_btn: Button
 var battle_btn: Button
+var share_btn: Button
+var bestiary_btn: Button
 var llm
 var current_seed := 0
 var current_creature: Dictionary = {}
 var battle = null
+var collection_view = null
+var collection: Array = []   # [{seed:int, name:String}], newest first
 var bg_top := Color("2a2140")
 var bg_bot := Color("4a3a6b")
 
 func _ready() -> void:
+	_load_collection()
 	_build_ui()
-	_summon()
+	# share-a-seed: on web, ?seed=N summons that exact creature on load
+	var shared := _shared_seed()
+	if shared >= 0:
+		_summon(shared)
+	else:
+		_summon()
 
 func _draw() -> void:
 	# vertical gradient backdrop
@@ -87,23 +101,59 @@ func _build_ui() -> void:
 	ability_label.size = Vector2(W - 180, 60)
 	ability_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 
+	# seed line + share (share-a-seed): a link that re-summons this exact creature
+	seed_label = Label.new()
+	seed_label.position = Vector2(90, 1030)
+	seed_label.size = Vector2(300, 30)
+	seed_label.add_theme_font_size_override("font_size", 18)
+	seed_label.add_theme_color_override("font_color", Color("9a8cc0"))
+	summon_layer.add_child(seed_label)
+
+	share_btn = Button.new()
+	share_btn.text = "SHARE"
+	share_btn.position = Vector2(W - 215, 1022)
+	share_btn.size = Vector2(155, 46)
+	share_btn.add_theme_font_size_override("font_size", 22)
+	share_btn.pressed.connect(_share_seed)
+	summon_layer.add_child(share_btn)
+
 	# summon + battle buttons, side by side
 	summon_btn = Button.new()
 	summon_btn.text = "SUMMON"
-	summon_btn.position = Vector2(55, 1080)
+	summon_btn.position = Vector2(55, 1082)
 	summon_btn.size = Vector2(290, 84)
 	summon_btn.add_theme_font_size_override("font_size", 32)
-	summon_btn.pressed.connect(_summon)
+	summon_btn.pressed.connect(_summon.bind(-1))
 	summon_layer.add_child(summon_btn)
 
 	battle_btn = Button.new()
 	battle_btn.text = "BATTLE"
-	battle_btn.position = Vector2(W - 345, 1080)
+	battle_btn.position = Vector2(W - 345, 1082)
 	battle_btn.size = Vector2(290, 84)
 	battle_btn.add_theme_font_size_override("font_size", 32)
 	battle_btn.add_theme_color_override("font_color", Color("9ff0d0"))
 	battle_btn.pressed.connect(_enter_battle)
 	summon_layer.add_child(battle_btn)
+
+	# bestiary of everything summoned so far
+	bestiary_btn = Button.new()
+	bestiary_btn.text = "BESTIARY"
+	bestiary_btn.position = Vector2(55, 1180)
+	bestiary_btn.size = Vector2(W - 110, 74)
+	bestiary_btn.add_theme_font_size_override("font_size", 30)
+	bestiary_btn.add_theme_color_override("font_color", Color("ffd7a8"))
+	bestiary_btn.pressed.connect(_open_collection)
+	summon_layer.add_child(bestiary_btn)
+
+	# transient toast ("link copied!")
+	toast_label = Label.new()
+	toast_label.position = Vector2(0, 664)
+	toast_label.size = Vector2(W, 34)
+	toast_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	toast_label.add_theme_font_size_override("font_size", 24)
+	toast_label.add_theme_color_override("font_color", Color("9ff0d0"))
+	toast_label.modulate.a = 0.0
+	summon_layer.add_child(toast_label)
 
 	# LLM loremaster
 	llm = LLMScript.new()
@@ -121,15 +171,18 @@ func _mk_label(pos: Vector2, size: int, col: Color) -> Label:
 	summon_layer.add_child(l)
 	return l
 
-func _summon() -> void:
-	var c = CreatureGenScript.generate(randi())
+func _summon(seed_val: int = -1) -> void:
+	var use_seed := seed_val if seed_val >= 0 else randi()
+	var c = CreatureGenScript.generate(use_seed)
 	current_seed = int(c["seed"])
 	current_creature = c
+	seed_label.text = "seed  %d" % current_seed
 	creature_view.set_creature(c)
 	creature_view.flash_hit()
 	# summon spark burst, tinted by the creature's element (brighter for rares)
 	var pal: Dictionary = Pal.get_palette(c["element"])
 	Fx.burst(summon_layer, creature_view.position, pal["accent"], (40 if c.get("rare", false) else 26))
+	_add_to_collection(current_seed, String(c["name"]))
 	# show the body + procedural fallback instantly; the LLM enriches the words
 	name_label.text = c["name"]
 	var prefix := "RARE  ·  " if c.get("rare", false) else ""
@@ -155,6 +208,7 @@ func _on_identity_ready(seed_val: int, identity: Dictionary) -> void:
 	if identity.has("name") and String(identity["name"]).length() > 0:
 		name_label.text = String(identity["name"])
 		current_creature["name"] = String(identity["name"])
+		_update_collection_name(seed_val, String(identity["name"]))
 	var title := String(identity.get("title", ""))
 	if title.length() > 0:
 		sub_label.text = title + "  ·  " + sub_label.text
@@ -180,3 +234,79 @@ func _on_battle_over(_player_won: bool) -> void:
 		battle = null
 	summon_layer.visible = true
 	_summon()
+
+# --- collection / bestiary ---
+
+func _open_collection() -> void:
+	if collection_view != null:
+		return
+	summon_layer.visible = false
+	collection_view = CollectionScript.new()
+	collection_view.setup(collection)
+	collection_view.closed.connect(_on_collection_closed)
+	add_child(collection_view)
+
+func _on_collection_closed() -> void:
+	if collection_view != null:
+		collection_view.queue_free()
+		collection_view = null
+	summon_layer.visible = true
+
+func _add_to_collection(seed_val: int, nm: String) -> void:
+	# dedupe by seed, newest first
+	for i in collection.size():
+		if int(collection[i].get("seed", -1)) == seed_val:
+			collection.remove_at(i)
+			break
+	collection.push_front({"seed": seed_val, "name": nm})
+	if collection.size() > 300:
+		collection.resize(300)
+	_save_collection()
+
+func _update_collection_name(seed_val: int, nm: String) -> void:
+	for e in collection:
+		if int(e.get("seed", -1)) == seed_val:
+			e["name"] = nm
+			_save_collection()
+			return
+
+func _load_collection() -> void:
+	if not FileAccess.file_exists(SAVE_PATH):
+		return
+	var f := FileAccess.open(SAVE_PATH, FileAccess.READ)
+	if f == null:
+		return
+	var data = JSON.parse_string(f.get_as_text())
+	if typeof(data) == TYPE_ARRAY:
+		collection = data
+
+func _save_collection() -> void:
+	var f := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
+	if f != null:
+		f.store_string(JSON.stringify(collection))
+
+# --- share-a-seed ---
+
+func _shared_seed() -> int:
+	if not OS.has_feature("web"):
+		return -1
+	var v = JavaScriptBridge.eval("new URLSearchParams(window.location.search).get('seed')", true)
+	if typeof(v) == TYPE_STRING and String(v).is_valid_int():
+		return int(String(v))
+	return -1
+
+func _share_seed() -> void:
+	var link := "seed %d" % current_seed
+	if OS.has_feature("web"):
+		var origin = JavaScriptBridge.eval("window.location.origin + window.location.pathname", true)
+		if typeof(origin) == TYPE_STRING:
+			link = String(origin) + "?seed=" + str(current_seed)
+	DisplayServer.clipboard_set(link)
+	_toast("link copied!")
+
+func _toast(msg: String) -> void:
+	toast_label.text = msg
+	toast_label.modulate.a = 1.0
+	var tw := create_tween()
+	tw.tween_interval(1.1)
+	tw.tween_property(toast_label, "modulate:a", 0.0, 0.6)

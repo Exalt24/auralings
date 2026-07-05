@@ -37,6 +37,7 @@ func has_key() -> bool:
 	return _is_web or _key != ""
 
 func request_identity(c: Dictionary) -> void:
+	_http.cancel_request()  # a newer summon supersedes any in-flight request
 	_pending_seed = int(c["seed"])
 	if _is_web:
 		# hand the traits to the proxy; it builds the prompt + injects the key.
