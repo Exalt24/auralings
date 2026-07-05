@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://auralings_capture_polish"]
+
+[ext_resource type="Script" path="res://tools/capture_polish.gd" id="1_capp"]
+
+[node name="CapturePolish" type="Node2D"]
+script = ExtResource("1_capp")
