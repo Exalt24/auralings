@@ -180,6 +180,7 @@ func _summon(seed_val: int = -1) -> void:
 	current_creature = c
 	seed_label.text = "seed  %d" % current_seed
 	creature_view.set_creature(c)
+	creature_view.fit_to(190.0)   # uniform footprint regardless of body/horns/aura
 	creature_view.flash_hit()
 	# summon spark burst, tinted by the creature's element (brighter for rares)
 	var pal: Dictionary = Pal.get_palette(c["element"])

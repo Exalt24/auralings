@@ -67,10 +67,10 @@ func _build() -> void:
 
 		var c = CreatureGenScript.generate(int(e["seed"]))
 		var view = CreatureViewScript.new()
-		view.scale = Vector2(0.42, 0.42)
 		view.position = Vector2(cx, cy)
 		add_child(view)
 		view.set_creature(c)
+		view.fit_to(80.0)   # uniform cell footprint so grid stays tidy
 
 		var nm := Label.new()
 		nm.text = String(e.get("name", c["name"]))

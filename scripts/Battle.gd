@@ -93,19 +93,19 @@ func _build() -> void:
 
 	# --- enemy (top), body right, faces left; panel top-left ---
 	e_view = CreatureViewScript.new()
-	e_view.scale = Vector2(0.80, 0.80)
 	e_view.facing = -1.0
 	e_view.position = Vector2(W * 0.70, 346)
 	e_view.set_creature(enemy)
+	e_view.fit_to(150.0)   # normalized footprint so it can't reach the player/panel
 	world.add_child(e_view)
 	_info_panel(Vector2(40, 104), enemy, false)
 
 	# --- player (bottom), body left, faces right; panel mid-right ---
 	p_view = CreatureViewScript.new()
-	p_view.scale = Vector2(0.82, 0.82)
 	p_view.facing = 1.0
 	p_view.position = Vector2(W * 0.30, 812)
 	p_view.set_creature(player)
+	p_view.fit_to(158.0)
 	world.add_child(p_view)
 	_info_panel(Vector2(W - 340, 700), player, true)
 
