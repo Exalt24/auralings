@@ -26,7 +26,7 @@ Render screenshots (real render, not headless): run `res://tools/Capture.tscn` �
 ## OPEN TODOs (next slices, in order)
 1. ~~**Battle loop**~~ — DONE 2026-07-05 (see CURRENT STATE). Optional future juice: summon/KO particle bursts, a "wild appears" intro slide-in, a victory reward (add the beaten creature to a collection).
 2. ~~**Web shipping**~~ — DONE 2026-07-05 (see CURRENT STATE). Live at https://auralings.vercel.app , auto-deploys from the repo. Serverless proxy holds the key; graceful procedural fallback if Groq throttles.
-3. **Art polish** — horns read a bit thin/pointy; add 1-2 rarer body archetypes; maybe a subtle summon particle burst + ground shadow.
+3. ~~**Art polish**~~ — DONE 2026-07-06. Ground contact shadow under every creature; element-tinted summon + knockout spark bursts (`scripts/Fx.gd`, CPUParticles2D, no art assets); ~12% "radiant" rare variant with a glowing aura + stat bump (RARE tag in the info card); horns fattened into blunt nubs. All render-verified desktop (`tools/CapturePolish.tscn` forces a rare) + live in-browser. Optional remaining: 1-2 more silhouette archetypes.
 4. (optional) a small "collection" / bestiary of summoned creatures; share-a-seed.
 
 ## APPLICATION CONTEXT
