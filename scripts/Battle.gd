@@ -117,7 +117,7 @@ func _build() -> void:
 	# --- buttons ---
 	attack_btn = _action_button("ATTACK", Vector2(46, 1090), Color("ffe9c7"))
 	attack_btn.pressed.connect(func(): _player_act(false))
-	ability_btn = _action_button("✦ " + String(player["ability_name"]), Vector2(W * 0.5 + 8, 1090), Color("9ff0d0"))
+	ability_btn = _action_button("*" + String(player["ability_name"]), Vector2(W * 0.5 + 8, 1090), Color("9ff0d0"))
 	ability_btn.add_theme_font_size_override("font_size", 24)
 	ability_btn.pressed.connect(func(): _player_act(true))
 
@@ -289,9 +289,9 @@ func _refresh_buttons() -> void:
 	attack_btn.disabled = busy or finished
 	ability_btn.disabled = busy or finished or player_cd > 0
 	if player_cd > 0:
-		ability_btn.text = "✦ ready in %d" % player_cd
+		ability_btn.text = "*ready in %d" % player_cd
 	else:
-		ability_btn.text = "✦ " + String(player["ability_name"])
+		ability_btn.text = "*" + String(player["ability_name"])
 
 func _end(player_won: bool) -> void:
 	finished = true
