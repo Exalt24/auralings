@@ -7,8 +7,13 @@
 		<title>Auralings</title>
 		<style>
 html, body, #canvas { margin: 0; padding: 0; border: 0; }
-body { color: #f2ecff; background: #2a2140; overflow: hidden; touch-action: none; }
-canvas, #canvas { display: block; margin: 0 auto; background: #2a2140; }
+body {
+	color: #f2ecff; background: #2a2140; overflow: hidden; touch-action: none;
+	height: 100vh; display: flex; align-items: center; justify-content: center;
+}
+/* the canvas is sized by JS to the game's aspect and centered, so the purple page
+   frames it instead of Godot painting black letterbox bars (canvas policy = None) */
+canvas, #canvas { display: block; background: #2a2140; }
 #canvas:focus { outline: none; }
 
 /* branded loading overlay */
@@ -65,6 +70,25 @@ canvas, #canvas { display: block; margin: 0 auto; background: #2a2140; }
 		<canvas id="canvas">Your browser does not support the canvas tag.</canvas>
 		<noscript>Your browser does not support JavaScript.</noscript>
 
+		<script>
+		// Fit the canvas to the window at the game's 720x1280 aspect, centered, so the
+		// themed page background frames it (no black letterbox bars). Re-applied on
+		// resize, and briefly during boot in case the engine touches the canvas size.
+		(function () {
+			function fit() {
+				var c = document.getElementById('canvas');
+				if (!c) return;
+				var s = Math.min(window.innerWidth / 720, window.innerHeight / 1280);
+				c.style.width = Math.round(720 * s) + 'px';
+				c.style.height = Math.round(1280 * s) + 'px';
+			}
+			window.addEventListener('resize', fit);
+			fit();
+			var iv = setInterval(fit, 250);
+			setTimeout(function () { clearInterval(iv); }, 9000);
+		}());
+		</script>
+
 		<div id="status">
 			<div id="brand-wrap">
 				<div id="brand">AURALINGS</div>
@@ -80,7 +104,7 @@ canvas, #canvas { display: block; margin: 0 auto; background: #2a2140; }
 
 		<script src="index.js"></script>
 		<script>
-const GODOT_CONFIG = {"args":[],"canvasResizePolicy":2,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"index","experimentalVK":false,"fileSizes":{"index.pck":91776,"index.wasm":37686550},"focusCanvas":true,"gdextensionLibs":[],"godotPoolSize":4};
+const GODOT_CONFIG = {"args":[],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"index","experimentalVK":false,"fileSizes":{"index.pck":91904,"index.wasm":37686550},"focusCanvas":true,"gdextensionLibs":[],"godotPoolSize":4};
 const GODOT_THREADS_ENABLED = false;
 const engine = new Engine(GODOT_CONFIG);
 
