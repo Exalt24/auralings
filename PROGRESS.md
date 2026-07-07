@@ -6,6 +6,18 @@
 `"E:/Game Editors/.../Godot_v4.6-stable_win64_console.exe" --path . --headless --quit` (parse-check).
 Render screenshots (real render, not headless): run `res://tools/Capture.tscn` → PNGs in `_shots/`.
 
+## CURRENT STATE (2026-07-08) — research-driven overhaul, live + verified
+
+Big quality pass grounded in a web-research sweep (see `DESIGN_UPGRADE.md`), all shipped to https://auralings.vercel.app and verified live via Playwright (mobile + desktop, 0 console errors, driven through summon/bestiary/battle):
+- **Creature variety (the core fix):** `CreatureGen.gd` now builds from orthogonal curated parts, shape-language bodies (round/tall/wide/teardrop/spike/chonk), independent eye styles + mouth types, layered appendages (horns incl. crown/curved/antenna, dorsal spikes, fins, tail, arms), per-creature color jitter inside each element's harmony (`Palettes.varied`), and a rarity ladder (common/rare/epic/legendary). Was "one blob recolored"; now every creature reads distinct. Verify with `tools/Proof.tscn` (grid contact sheet).
+- **UI rebuilt on a shared kit** (`scripts/UI.gd`): every screen uses Control layout containers (no hand-typed pixel coords), rounded shadowed cards, styled buttons, rarity color language, type hierarchy. Summon screen, bestiary, and battle all overhauled.
+- **Bestiary:** paged (not scrolled), rarity-bordered cards, discovered count + legend, Newest/Rarity sort toggle (no search/filter — over-engineering at this scale, per research).
+- **Battle depth:** speed-based turn order, Charge risk/reward move, Burn DoT on super-effective abilities, effectiveness callouts, hitstop + shake + floating numbers, turbo QOL toggle.
+- **Procedural SFX** (`scripts/Sfx.gd`, synthesized, zero assets) + **accessibility** (`scripts/Settings.gd`): SFX + reduced-motion toggles on the summon screen (reduced-motion damps shake/particles).
+- **Backend hardening** (`api/summon.js`): 8s abort timeout, warm-instance LRU cache (idempotent + cost), per-IP token-bucket rate limit, one retry on 429/5xx, input clamping. Client (`LLM.gd`) has a 12s request timeout so summon never hangs.
+- **Web:** glyphs sanitized for the web font (no tofu), self-intersecting polygons fixed (0 triangulation errors), loader background themed, canvas_resize_policy=Adaptive + stretch keep = scale-to-fit responsive (whole design always fits, no truncation on any device). Thin letterbox on ultra-wide desktop is expected for a portrait game.
+- **Not done:** a fully branded wordmark loading splash (would need a custom HTML shell; the loader is currently themed-default). `tools/capture_splash` hangs headless — revisit if a splash is wanted.
+
 ## CURRENT STATE (2026-07-05)
 - **v0.1 + LLM slice DONE and verified via real render.** Summon screen generates a procedural Auraling (smooth harmonic-blob body, curated per-element palette, eyes/cheeks/spots/horns/feet, idle squash-stretch breathing) + Groq-authored name/title/lore/ability. Compiles clean, renders beautifully, LLM confirmed working (Vyzo/Weru examples).
 - **BATTLE LOOP DONE and verified via real render (2026-07-05).** Summon screen has a `BATTLE ►` button → turn-based fight (`scripts/Battle.gd`): your summoned Auraling vs a freshly-generated wild one. ATTACK (1.0x) + element ABILITY (1.8x, 3-turn cooldown), 8-element type chart (super-effective 1.5x / resisted 0.66x, both directions confirmed in logs), tweened HP bars, floating damage numbers, hit flash, screen shake, VICTORY/DEFEATED banner + SUMMON ANOTHER return. Enemy AI uses its ability off cooldown else attacks. The LLM-authored name + ability carry into battle (stored on `current_creature`). Verify render: run `res://tools/CaptureBattle.tscn` → `_shots/battle_*.png`.
