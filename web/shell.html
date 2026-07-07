@@ -4,7 +4,7 @@
 		<meta charset="utf-8">
 		<meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1.0">
 		<meta name="theme-color" content="#2a2140">
-		<title>Auralings</title>
+		<title>$GODOT_PROJECT_NAME</title>
 		<style>
 html, body, #canvas { margin: 0; padding: 0; border: 0; }
 body { color: #f2ecff; background: #2a2140; overflow: hidden; touch-action: none; }
@@ -57,9 +57,7 @@ canvas, #canvas { display: block; margin: 0 auto; background: #2a2140; }
 @keyframes slide { 0% { margin-left: -38%; } 100% { margin-left: 100%; } }
 @keyframes pulse { 0%, 100% { opacity: 0.45; } 50% { opacity: 1; } }
 		</style>
-		<link id="-gd-engine-icon" rel="icon" type="image/png" href="index.icon.png" />
-<link rel="apple-touch-icon" href="index.apple-touch-icon.png"/>
-<style>html,body{background:#2a2140 !important;margin:0;padding:0}canvas,#canvas{background:#2a2140 !important;display:block !important;margin:0 auto !important}#status{background:#2a2140 !important}#status-progress{border-color:#6b4fd0 !important}#status-progress-inner{background-color:#9ff0d0 !important}</style><meta name="theme-color" content="#2a2140">
+		$GODOT_HEAD_INCLUDE
 	</head>
 	<body>
 		<canvas id="canvas">Your browser does not support the canvas tag.</canvas>
@@ -78,10 +76,10 @@ canvas, #canvas { display: block; margin: 0 auto; background: #2a2140; }
 			<div id="status-notice"></div>
 		</div>
 
-		<script src="index.js"></script>
+		<script src="$GODOT_URL"></script>
 		<script>
-const GODOT_CONFIG = {"args":[],"canvasResizePolicy":2,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"index","experimentalVK":false,"fileSizes":{"index.pck":91776,"index.wasm":37686550},"focusCanvas":true,"gdextensionLibs":[],"godotPoolSize":4};
-const GODOT_THREADS_ENABLED = false;
+const GODOT_CONFIG = $GODOT_CONFIG;
+const GODOT_THREADS_ENABLED = $GODOT_THREADS_ENABLED;
 const engine = new Engine(GODOT_CONFIG);
 
 (function () {
@@ -189,4 +187,3 @@ const engine = new Engine(GODOT_CONFIG);
 		</script>
 	</body>
 </html>
-
