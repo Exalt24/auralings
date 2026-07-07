@@ -61,8 +61,8 @@ func _ready() -> void:
 	_panel = PanelContainer.new()
 	_panel.add_theme_stylebox_override("panel", UI.panel(UI.CARD, 18, Color(1, 1, 1, 0.08), 2, 10))
 	_panel.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
-	_panel.offset_left = -250; _panel.offset_top = 78
-	_panel.offset_right = -14; _panel.offset_bottom = 208
+	_panel.offset_left = -272; _panel.offset_top = 80
+	_panel.offset_right = -22; _panel.offset_bottom = 212
 	_panel.visible = false
 	_panel.modulate.a = 0.0
 	add_child(_panel)
