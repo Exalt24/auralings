@@ -23,6 +23,7 @@ var _pending_seed := 0
 func _ready() -> void:
 	_is_web = OS.has_feature("web")
 	_http = HTTPRequest.new()
+	_http.timeout = 12.0  # never leave the summon button stuck on a hung network
 	add_child(_http)
 	_http.request_completed.connect(_on_done)
 	# desktop reads the key from the gitignored secret; the web build never sees a
