@@ -16,6 +16,7 @@ const UI = preload("res://scripts/UI.gd")
 const CollectionScript = preload("res://scripts/Collection.gd")
 const SfxScript = preload("res://scripts/Sfx.gd")
 const Settings = preload("res://scripts/Settings.gd")
+const SettingsMenuScript = preload("res://scripts/SettingsMenu.gd")
 
 const W := 720
 const H := 1280
@@ -80,35 +81,11 @@ func _build_ui() -> void:
 	var root := Control.new()
 	root.size = Vector2(W, H)
 	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	summon_layer.add_child(root)
 
-	# accessibility toggles, top-right (SFX / reduce-motion). Green = on.
-	var settings_row := HBoxContainer.new()
-	settings_row.add_theme_constant_override("separation", 8)
-	settings_row.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
-	settings_row.offset_left = -220; settings_row.offset_top = 12
-	settings_row.offset_right = -12; settings_row.offset_bottom = 52
-	root.add_child(settings_row)
-	var mute_btn := Button.new()
-	mute_btn.text = "SFX"; mute_btn.toggle_mode = true; mute_btn.button_pressed = true
-	mute_btn.custom_minimum_size = Vector2(96, 40)
-	UI.style_button(mute_btn, UI.INK_SOFT, UI.MINT, 18, 12)
-	mute_btn.toggled.connect(func(on):
-		Settings.muted = not on
-		mute_btn.add_theme_color_override("font_color", UI.MINT if on else UI.TEXT_DIM)
-		if not Settings.muted and sfx: sfx.play("tap"))
-	settings_row.add_child(mute_btn)
-	var motion_btn := Button.new()
-	motion_btn.text = "MOTION"; motion_btn.toggle_mode = true; motion_btn.button_pressed = true
-	motion_btn.custom_minimum_size = Vector2(108, 40)
-	UI.style_button(motion_btn, UI.INK_SOFT, UI.MINT, 18, 12)
-	motion_btn.toggled.connect(func(on):
-		Settings.reduced_motion = not on
-		motion_btn.add_theme_color_override("font_color", UI.MINT if on else UI.TEXT_DIM)
-		if sfx: sfx.play("tap"))
-	settings_row.add_child(motion_btn)
-
 	var margin := MarginContainer.new()
+	margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	margin.add_theme_constant_override("margin_left", 42)
 	margin.add_theme_constant_override("margin_right", 42)
@@ -224,6 +201,11 @@ func _build_ui() -> void:
 	UI.style_button(bestiary_btn, UI.INK_SOFT, UI.GOLD, 28)
 	bestiary_btn.pressed.connect(_open_collection)
 	col.add_child(bestiary_btn)
+
+	# gear settings menu, added LAST so it sits on top of the layout and is clickable
+	var settings_menu := SettingsMenuScript.new()
+	settings_menu.sfx = sfx
+	root.add_child(settings_menu)
 
 	llm = LLMScript.new()
 	summon_layer.add_child(llm)
