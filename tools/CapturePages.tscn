@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://auralings_pages"]
+
+[ext_resource type="Script" path="res://tools/capture_pages.gd" id="1_pages"]
+
+[node name="Pages" type="Node2D"]
+script = ExtResource("1_pages")

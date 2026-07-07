@@ -3,7 +3,12 @@ extends RefCounted
 # Tiny one-shot particle burst used for summons and knockouts. Built in code (no
 # texture = small square sparks) so there are no art assets to ship. Auto-frees.
 
+const Settings = preload("res://scripts/Settings.gd")
+
 static func burst(parent: Node2D, pos: Vector2, col: Color, amount: int = 26, speed: float = 280.0) -> void:
+	if Settings.reduced_motion:
+		amount = maxi(6, int(amount * 0.3))   # keep a subtle pop, drop the spray
+		speed *= 0.5
 	var p := CPUParticles2D.new()
 	p.position = pos
 	p.z_index = 30
