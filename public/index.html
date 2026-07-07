@@ -3,108 +3,77 @@
 	<head>
 		<meta charset="utf-8">
 		<meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1.0">
+		<meta name="theme-color" content="#2a2140">
 		<title>Auralings</title>
 		<style>
-html, body, #canvas {
-	margin: 0;
-	padding: 0;
-	border: 0;
-}
+html, body, #canvas { margin: 0; padding: 0; border: 0; }
+body { color: #f2ecff; background: #2a2140; overflow: hidden; touch-action: none; }
+canvas, #canvas { display: block; margin: 0 auto; background: #2a2140; }
+#canvas:focus { outline: none; }
 
-body {
-	color: white;
-	background-color: black;
-	overflow: hidden;
-	touch-action: none;
-}
-
-#canvas {
-	display: block;
-}
-
-#canvas:focus {
-	outline: none;
-}
-
-#status, #status-splash, #status-progress {
-	position: absolute;
-	left: 0;
-	right: 0;
-}
-
-#status, #status-splash {
-	top: 0;
-	bottom: 0;
-}
-
+/* branded loading overlay */
+#status, #status-splash, #status-progress { position: absolute; left: 0; right: 0; }
+#status, #status-splash { top: 0; bottom: 0; }
 #status {
-	background-color: #242424;
-	display: flex;
-	flex-direction: column;
-	justify-content: center;
-	align-items: center;
-	visibility: hidden;
+	background: linear-gradient(180deg, #2a2140 0%, #453763 100%);
+	display: flex; flex-direction: column; justify-content: center; align-items: center;
+	font-family: 'Trebuchet MS', 'Segoe UI', system-ui, sans-serif;
+	z-index: 5;
 }
+/* the Godot icon splash + native progress are kept for the boot script but hidden */
+#status-splash { display: none !important; }
+#status-progress { display: none !important; }
 
-#status-splash {
-	max-height: 100%;
-	max-width: 100%;
-	margin: auto;
+#brand-wrap { display: flex; flex-direction: column; align-items: center; padding: 0 24px; text-align: center; }
+#brand {
+	font-size: clamp(42px, 10vw, 76px); font-weight: 800; letter-spacing: 0.07em;
+	color: #ffe9c7; text-shadow: 0 2px 26px rgba(107, 79, 208, 0.55);
 }
-
-#status-splash.show-image--false {
-	display: none;
+#brand-tag { margin-top: 12px; font-size: clamp(14px, 3.6vw, 20px); color: #c9b8e8; }
+#brand-orbit {
+	margin-top: 30px; width: 64px; height: 64px; border-radius: 50%;
+	border: 4px solid rgba(159, 240, 208, 0.18); border-top-color: #9ff0d0;
+	animation: spin 0.9s linear infinite;
 }
-
-#status-splash.fullsize--true {
-	height: 100%;
-	width: 100%;
-	object-fit: contain;
+#bar {
+	margin-top: 30px; width: min(62%, 300px); height: 12px; border-radius: 999px;
+	background: rgba(255, 255, 255, 0.12); overflow: hidden;
 }
-
-#status-splash.use-filter--false {
-	image-rendering: pixelated;
+#bar-inner {
+	height: 100%; width: 0; border-radius: 999px;
+	background: linear-gradient(90deg, #6b4fd0, #9ff0d0); transition: width 0.25s ease;
 }
-
-#status-progress, #status-notice {
-	display: none;
+#bar-inner.indet { width: 38%; animation: slide 1.1s ease-in-out infinite; }
+#brand-hint {
+	margin-top: 18px; font-size: 13px; color: #9ff0d0;
+	letter-spacing: 0.18em; text-transform: uppercase; animation: pulse 1.5s ease-in-out infinite;
 }
-
-#status-progress {
-	bottom: 10%;
-	width: 50%;
-	margin: 0 auto;
-}
-
 #status-notice {
-	background-color: #5b3943;
-	border-radius: 0.5rem;
-	border: 1px solid #9b3943;
-	color: #e0e0e0;
-	font-family: 'Noto Sans', 'Droid Sans', Arial, sans-serif;
-	line-height: 1.3;
-	margin: 0 2rem;
-	overflow: hidden;
-	padding: 1rem;
-	text-align: center;
-	z-index: 1;
+	background-color: #5b3943; border-radius: 0.6rem; border: 1px solid #9b3943;
+	color: #ffe0e0; line-height: 1.3; margin: 1.4rem 2rem 0; padding: 1rem;
+	text-align: center; z-index: 6; display: none; max-width: 80%;
 }
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes slide { 0% { margin-left: -38%; } 100% { margin-left: 100%; } }
+@keyframes pulse { 0%, 100% { opacity: 0.45; } 50% { opacity: 1; } }
 		</style>
 		<link id="-gd-engine-icon" rel="icon" type="image/png" href="index.icon.png" />
 <link rel="apple-touch-icon" href="index.apple-touch-icon.png"/>
 <style>html,body{background:#2a2140 !important;margin:0;padding:0}canvas,#canvas{background:#2a2140 !important;display:block !important;margin:0 auto !important}#status{background:#2a2140 !important}#status-progress{border-color:#6b4fd0 !important}#status-progress-inner{background-color:#9ff0d0 !important}</style><meta name="theme-color" content="#2a2140">
 	</head>
 	<body>
-		<canvas id="canvas">
-			Your browser does not support the canvas tag.
-		</canvas>
-
-		<noscript>
-			Your browser does not support JavaScript.
-		</noscript>
+		<canvas id="canvas">Your browser does not support the canvas tag.</canvas>
+		<noscript>Your browser does not support JavaScript.</noscript>
 
 		<div id="status">
-			<img id="status-splash" class="show-image--true fullsize--true use-filter--true" src="index.png" alt="">
+			<div id="brand-wrap">
+				<div id="brand">AURALINGS</div>
+				<div id="brand-tag">summon infinite creatures, drawn by code, named by AI</div>
+				<div id="brand-orbit"></div>
+				<div id="bar"><div id="bar-inner" class="indet"></div></div>
+				<div id="brand-hint">summoning</div>
+			</div>
+			<img id="status-splash" src="index.png" alt="">
 			<progress id="status-progress"></progress>
 			<div id="status-notice"></div>
 		</div>
@@ -119,6 +88,8 @@ const engine = new Engine(GODOT_CONFIG);
 	const statusOverlay = document.getElementById('status');
 	const statusProgress = document.getElementById('status-progress');
 	const statusNotice = document.getElementById('status-notice');
+	const barInner = document.getElementById('bar-inner');
+	const orbit = document.getElementById('brand-orbit');
 
 	let initializing = true;
 	let statusMode = '';
@@ -133,8 +104,10 @@ const engine = new Engine(GODOT_CONFIG);
 			return;
 		}
 		statusOverlay.style.visibility = 'visible';
-		statusProgress.style.display = mode === 'progress' ? 'block' : 'none';
 		statusNotice.style.display = mode === 'notice' ? 'block' : 'none';
+		if (orbit) {
+			orbit.style.display = mode === 'notice' ? 'none' : 'block';
+		}
 		statusMode = mode;
 	}
 
@@ -174,7 +147,6 @@ const engine = new Engine(GODOT_CONFIG);
 			} catch (err) {
 				serviceWorkerRegistrationPromise = Promise.reject(new Error('Service worker registration failed.'));
 			}
-			// There's a chance that installing the service worker would fix the issue
 			Promise.race([
 				serviceWorkerRegistrationPromise.then((registration) => {
 					if (registration != null) {
@@ -182,18 +154,15 @@ const engine = new Engine(GODOT_CONFIG);
 					}
 					return registration;
 				}).then(() => engine.installServiceWorker()),
-				// For some reason, `getRegistration()` can stall
 				new Promise((resolve) => {
 					setTimeout(() => resolve(), 2000);
 				}),
 			]).then(() => {
-				// Reload if there was no error.
 				window.location.reload();
 			}).catch((err) => {
 				console.error('Error while registering service worker:', err);
 			});
 		} else {
-			// Display the message as usual
 			const missingMsg = 'Error\nThe following features required to run Godot projects on the Web are missing:\n';
 			displayFailureNotice(missingMsg + missing.join('\n'));
 		}
@@ -202,9 +171,12 @@ const engine = new Engine(GODOT_CONFIG);
 		engine.startGame({
 			'onProgress': function (current, total) {
 				if (current > 0 && total > 0) {
+					barInner.classList.remove('indet');
+					barInner.style.width = Math.min(100, (current / total) * 100) + '%';
 					statusProgress.value = current;
 					statusProgress.max = total;
 				} else {
+					barInner.classList.add('indet');
 					statusProgress.removeAttribute('value');
 					statusProgress.removeAttribute('max');
 				}
