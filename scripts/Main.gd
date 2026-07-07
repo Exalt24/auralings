@@ -276,7 +276,7 @@ func _summon(seed_val: int = -1) -> void:
 	_set_rarity_pill(rar)
 	sub_label.text = "%s  ·  %s" % [String(c["element"]).capitalize(), c["archetype"]]
 	stat_label.text = "HP %d    ATK %d    SPD %d" % [c["hp"], c["atk"], c["spd"]]
-	ability_label.text = "✦ " + c["ability_name"]
+	ability_label.text = "• " + c["ability_name"]
 	if llm.has_key():
 		lore_label.text = "summoning its story…"
 		summon_btn.disabled = true
@@ -311,7 +311,7 @@ func _on_identity_ready(seed_val: int, identity: Dictionary) -> void:
 	var abil_name := String(identity.get("ability_name", ""))
 	var abil_desc := String(identity.get("ability_desc", ""))
 	if abil_name.length() > 0:
-		ability_label.text = "✦ %s: %s" % [abil_name, abil_desc]
+		ability_label.text = "• %s: %s" % [abil_name, abil_desc]
 		current_creature["ability_name"] = abil_name
 
 func _enter_battle() -> void:
@@ -395,7 +395,7 @@ func _shared_seed() -> int:
 func _share_seed() -> void:
 	if sfx: sfx.play("tap")
 	var rar := String(current_creature.get("rarity", "common"))
-	var star := "★" if rar != "common" else ""
+	var star := "*" if rar != "common" else ""
 	var line := "I summoned %s %s the %s Auraling %s" % [
 		star, current_creature.get("name", "?"),
 		String(current_creature.get("element", "")).capitalize(), star]

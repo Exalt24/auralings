@@ -98,8 +98,8 @@ func _draw() -> void:
 	# --- body: outline then fill ---
 	var pts := _blob_points(r)
 	var outline := _blob_points(r + 7.0)
-	draw_colored_polygon(outline, pal["shade"])
-	draw_colored_polygon(pts, body)
+	_poly(outline, pal["shade"])
+	_poly(pts, body)
 
 	# belly + pattern
 	_ellipse(Vector2(0, r * 0.34 + data.get("top_bias", 0.0) * r), r * 0.52, r * 0.44, pal["belly"])
@@ -181,19 +181,21 @@ func _headgear(r: float, pal: Dictionary) -> void:
 			_crown(r, pal)
 
 func _crown(r: float, pal: Dictionary) -> void:
+	# built from convex pieces (a base bar + one triangle per point) so it can never
+	# be a self-intersecting polygon that fails triangulation
 	var y := -r * 0.78
-	var pts := PackedVector2Array()
 	var w := r * 0.5
-	pts.append(Vector2(-w, y + 18))
 	var spikes := 5
-	for i in spikes + 1:
-		var t := float(i) / float(spikes)
-		var x: float = lerp(-w, w, t)
-		pts.append(Vector2(x - w / spikes * 0.5, y))
-		pts.append(Vector2(x, y - 28 - (10 if i == spikes / 2 else 0)))
-	pts.append(Vector2(w, y + 18))
-	draw_colored_polygon(pts, pal["accent"])
-	draw_polyline(pts, pal["shade"], 3.0)
+	_poly(PackedVector2Array([
+		Vector2(-w, y + 18), Vector2(w, y + 18), Vector2(w, y + 2), Vector2(-w, y + 2)
+	]), pal["accent"])
+	for i in spikes:
+		var cx: float = lerp(-w, w, (float(i) + 0.5) / float(spikes))
+		var hh := 30.0 + (12.0 if i == 2 else 0.0)
+		var half := w / float(spikes) * 0.72
+		_poly(PackedVector2Array([
+			Vector2(cx - half, y + 4), Vector2(cx + half, y + 4), Vector2(cx, y - hh)
+		]), pal["accent"])
 
 func _spikes(r: float, pal: Dictionary) -> void:
 	var rows := int(data.get("spike_rows", 4))
@@ -203,7 +205,7 @@ func _spikes(r: float, pal: Dictionary) -> void:
 		var h: float = 26.0 + 10.0 * (1.0 - absf(t) * 1.4)
 		var tip := base + Vector2(t * 10.0, -h)
 		var pts := PackedVector2Array([base + Vector2(-11, 0), base + Vector2(11, 0), tip])
-		draw_colored_polygon(pts, pal["shade"])
+		_poly(pts, pal["shade"])
 
 func _fins(r: float, pal: Dictionary) -> void:
 	for s in [-1.0, 1.0]:
@@ -212,7 +214,7 @@ func _fins(r: float, pal: Dictionary) -> void:
 			b + Vector2(0, -34), b + Vector2(s * 44, -6),
 			b + Vector2(s * 40, 30), b + Vector2(0, 30),
 		])
-		draw_colored_polygon(pts, pal["accent"])
+		_poly(pts, pal["accent"])
 		draw_polyline(PackedVector2Array([b + Vector2(0,-34), b + Vector2(s*44,-6), b + Vector2(s*40,30)]), pal["shade"], 3.0)
 
 func _tail(r: float, pal: Dictionary) -> void:
@@ -285,15 +287,13 @@ func _draw_face(r: float, pal: Dictionary) -> void:
 		draw_circle(pup, es * 0.5 * openness, Color("2b2b3a"))
 		var shine := (es * 0.20 if style == "cute" else es * 0.16)
 		draw_circle(pup + Vector2(-es * 0.15, -es * 0.18), shine, Color.WHITE)
-		# angry/sharp: a slanted brow lid biting into the eye
+		# angry/sharp: a thick slanted brow biting toward the nose (a line, so it can
+		# never be a self-intersecting polygon)
 		if style in ["angry", "sharp"]:
-			var dir := 1.0 if p.x < 0.0 else -1.0
-			var lid := PackedVector2Array([
-				p + Vector2(-w, -hgt * 0.9), p + Vector2(w, -hgt * 0.9),
-				p + Vector2(w, -hgt * (0.1 if dir > 0 else 1.3)),
-				p + Vector2(-w, -hgt * (1.3 if dir > 0 else 0.1)),
-			])
-			draw_colored_polygon(lid, pal["shade"])
+			var inner_x := w if p.x < 0.0 else -w   # toward center
+			var brow_a := p + Vector2(-inner_x, -hgt * 1.25)
+			var brow_b := p + Vector2(inner_x, -hgt * 0.35)
+			draw_line(brow_a, brow_b, pal["shade"], 6.0)
 
 	_draw_mouth(r, pal, ey, es)
 
@@ -313,23 +313,40 @@ func _draw_mouth(r: float, pal: Dictionary, ey: float, es: float) -> void:
 		"fang":
 			draw_arc(Vector2(0, my), 15, 0.12 * PI, 0.88 * PI, 14, pal["shade"], 3.0)
 			for fx in [-9.0, 9.0]:
-				draw_colored_polygon(PackedVector2Array([
+				_poly(PackedVector2Array([
 					Vector2(fx - 4, my + 2), Vector2(fx + 4, my + 2), Vector2(fx, my + 14)
 				]), Color.WHITE)
 		"beak":
-			draw_colored_polygon(PackedVector2Array([
+			_poly(PackedVector2Array([
 				Vector2(-11, my - 3), Vector2(11, my - 3), Vector2(0, my + 13)
 			]), pal["accent"])
 			draw_polyline(PackedVector2Array([Vector2(-11, my-3), Vector2(0, my+13), Vector2(11, my-3)]), pal["shade"], 2.0)
 
 # --- primitives ---
+# Guarded polygon draw: strips NaN/inf and duplicate-adjacent points and skips
+# anything with fewer than 3 valid vertices, so degenerate appendage shapes never
+# spam "triangulation failed" (Godot silently drops those, but the console noise
+# looks bad to anyone with devtools open).
+func _poly(pts: PackedVector2Array, col: Color) -> void:
+	if pts.size() < 3:
+		return
+	var clean := PackedVector2Array()
+	for pt in pts:
+		if not (is_finite(pt.x) and is_finite(pt.y)):
+			continue
+		if clean.size() > 0 and clean[clean.size() - 1].distance_to(pt) < 0.5:
+			continue
+		clean.append(pt)
+	if clean.size() >= 3:
+		draw_colored_polygon(clean, col)
+
 func _ellipse(center: Vector2, rx: float, ry: float, col: Color) -> void:
 	var n := 24
 	var pts := PackedVector2Array()
 	for i in n:
 		var a := TAU * float(i) / float(n)
 		pts.append(center + Vector2(cos(a) * rx, sin(a) * ry))
-	draw_colored_polygon(pts, col)
+	_poly(pts, col)
 
 func _horn(base: Vector2, lean: float, length: float, col: Color, edge: Color, w: float = 24.0, tw: float = 7.0) -> void:
 	var tip := base + Vector2(sin(lean) * length * 0.5, -length)
@@ -339,25 +356,30 @@ func _horn(base: Vector2, lean: float, length: float, col: Color, edge: Color, w
 		base + Vector2(-w, 6), base + Vector2(w, 6),
 		tip + perp * tw, tip - perp * tw,
 	])
-	draw_colored_polygon(pts, col)
+	_poly(pts, col)
 	draw_polyline(PackedVector2Array([
 		base + Vector2(-w, 6), tip - perp * tw, tip + perp * tw, base + Vector2(w, 6)
 	]), edge, 3.0)
 
 func _curved_horn(base: Vector2, dir: float, length: float, col: Color, edge: Color) -> void:
-	var pts := PackedVector2Array()
+	# drawn as per-segment convex trapezoids (perpendicular width) so the tapering
+	# curve never folds into a self-intersecting polygon
 	var segs := 8
+	var center: Array[Vector2] = []
 	for i in segs + 1:
 		var t := float(i) / float(segs)
 		var ang := dir * (0.3 + t * 1.1)
-		var p := base + Vector2(sin(ang) * length * 0.6 * dir, -cos(ang) * length)
-		pts.append(p + Vector2(-6 * (1.0 - t), 0))
-	for i in range(segs, -1, -1):
-		var t := float(i) / float(segs)
-		var ang := dir * (0.3 + t * 1.1)
-		var p := base + Vector2(sin(ang) * length * 0.6 * dir, -cos(ang) * length)
-		pts.append(p + Vector2(6 * (1.0 - t), 0))
-	draw_colored_polygon(pts, col)
+		center.append(base + Vector2(sin(ang) * length * 0.6 * dir, -cos(ang) * length))
+	for i in segs:
+		var t0 := float(i) / float(segs)
+		var t1 := float(i + 1) / float(segs)
+		var a: Vector2 = center[i]
+		var b: Vector2 = center[i + 1]
+		var d := (b - a).normalized()
+		var perp := Vector2(-d.y, d.x)
+		var w0 := 8.0 * (1.0 - t0)
+		var w1 := 8.0 * (1.0 - t1)
+		_poly(PackedVector2Array([a + perp * w0, b + perp * w1, b - perp * w1, a - perp * w0]), col)
 
 func _antenna(base: Vector2, lean: float, length: float, col: Color, edge: Color) -> void:
 	var wob := sin(_phase * 2.4 + base.x) * 6.0
