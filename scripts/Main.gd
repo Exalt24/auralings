@@ -265,7 +265,9 @@ func _summon(seed_val: int = -1) -> void:
 	var pal: Dictionary = Pal.varied(c["element"], c.get("hue_shift", 0.0), c.get("sat_mul", 1.0), c.get("val_mul", 1.0))
 	var rar: String = c.get("rarity", "common")
 	Fx.burst(summon_layer, creature_view.position, pal["accent"], (46 if rar != "common" else 26))
-	if sfx:
+	# skip SFX on the very first (auto) summon at load: browsers block audio until a
+	# user gesture, and playing before the first tap gets dropped + warns
+	if sfx and _summons_done > 1:
 		sfx.play("summon")
 		if rar != "common":
 			sfx.play("rare", 1.0)
@@ -404,7 +406,15 @@ func _share_seed() -> void:
 		var origin = JavaScriptBridge.eval("window.location.origin + window.location.pathname", true)
 		if typeof(origin) == TYPE_STRING:
 			link = String(origin) + "?seed=" + str(current_seed)
-	DisplayServer.clipboard_set(line + "\n" + link)
+	var full := line + "\n" + link
+	if OS.has_feature("web"):
+		# DisplayServer.clipboard_set is unreliable on Chrome web, so copy via JS
+		# (async Clipboard API) with a textarea/execCommand fallback. We're inside a
+		# button-press gesture, which is what the browser requires.
+		var js := "(function(t){try{if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t);return;}}catch(e){}var a=document.createElement('textarea');a.value=t;a.style.position='fixed';a.style.opacity='0';document.body.appendChild(a);a.focus();a.select();try{document.execCommand('copy');}catch(_){}document.body.removeChild(a);})(%s);" % JSON.stringify(full)
+		JavaScriptBridge.eval(js)
+	else:
+		DisplayServer.clipboard_set(full)
 	_toast("copied! share your Auraling")
 
 func _toast(msg: String) -> void:
