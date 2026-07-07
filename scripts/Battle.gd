@@ -299,7 +299,7 @@ func _resolve(is_player: bool, action: String) -> void:
 		mult *= 2.5
 		if is_player: player_charged = false
 		else: enemy_charged = false
-		log_label.text += "  (charged!)"
+		log_label.text += " (charged!)"
 
 	await _strike(is_player, mult, action == "ability")
 
@@ -327,13 +327,13 @@ func _strike(player_is_attacker: bool, mult: float, is_ability: bool) -> void:
 		_set_bar(p_fill, p_hp_label, player_hp, int(player["max_hp"]), _p_bar_w)
 
 	if type_mult > 1.0:
-		log_label.text += "  Super effective!"
+		log_label.text += " Super effective!"
 		# super-effective ability inflicts BURN
 		if is_ability:
 			if player_is_attacker: enemy_burn = 3; _set_status(e_status, "BURN")
 			else: player_burn = 3; _set_status(p_status, "BURN")
 	elif type_mult < 1.0:
-		log_label.text += "  Resisted…"
+		log_label.text += " Resisted..."
 
 	var dead := enemy_hp <= 0 if player_is_attacker else player_hp <= 0
 	if dead:

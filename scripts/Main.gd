@@ -280,9 +280,9 @@ func _summon(seed_val: int = -1) -> void:
 	stat_label.text = "HP %d    ATK %d    SPD %d" % [c["hp"], c["atk"], c["spd"]]
 	ability_label.text = "• " + c["ability_name"]
 	if llm.has_key():
-		lore_label.text = "summoning its story…"
+		lore_label.text = "summoning its story..."
 		summon_btn.disabled = true
-		summon_btn.text = "SUMMONING…"
+		summon_btn.text = "SUMMONING..."
 		llm.request_identity(c)
 	else:
 		lore_label.text = "A wandering %s spirit." % String(c["element"]).capitalize()
@@ -300,7 +300,7 @@ func _on_identity_ready(seed_val: int, identity: Dictionary) -> void:
 	if seed_val != current_seed:
 		return
 	if identity.is_empty():
-		lore_label.text = "Its story is lost to static…"
+		lore_label.text = "Its story is lost to static..."
 		return
 	if identity.has("name") and String(identity["name"]).length() > 0:
 		name_label.text = String(identity["name"])
