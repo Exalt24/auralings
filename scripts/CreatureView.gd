@@ -2,24 +2,26 @@ extends Node2D
 
 const Pal = preload("res://scripts/Palettes.gd")
 
-# Draws an Auraling entirely in code from its trait dict. Soft rounded blob body,
-# curated-palette fill, dark outline (the outline is what reads "intentional"
-# instead of "slop"), plus idle squash-and-stretch breathing = game juice.
+# Draws an Auraling entirely in code from its trait dict. A curated palette (jittered
+# inside a harmony), a shape-language body, an independent face (eye style + mouth),
+# and layered appendages (horns/spikes/fins/tail/arms) combine into a distinct look.
+# Idle squash-and-stretch breathing + a dark outline read "intentional," not "slop."
 
 var data: Dictionary = {}
+var _pal: Dictionary = {}
 var _phase: float = 0.0
 var _blink: float = 0.0
 var _blink_timer: float = 2.0
 var _hit_flash: float = 0.0
-var facing: float = 1.0  # 1 = faces right, -1 = faces left
+var facing: float = 1.0
+
+const RARITY_AURA := {"common": 0.0, "rare": 1.10, "epic": 1.28, "legendary": 1.46}
 
 func set_creature(d: Dictionary) -> void:
 	data = d
+	_pal = Pal.varied(d.get("element", "tide"), d.get("hue_shift", 0.0), d.get("sat_mul", 1.0), d.get("val_mul", 1.0))
 	queue_redraw()
 
-# The furthest any drawn part reaches from the origin, in LOCAL (unscaled) units:
-# body bulge (x aspect), horns, and the rare aura. Used to normalize footprint so
-# no creature ever bleeds into a neighbour's space, whatever its random traits.
 func content_extent() -> float:
 	if data.is_empty():
 		return 1.0
@@ -28,15 +30,17 @@ func content_extent() -> float:
 	var harm_sum := 0.0
 	for h in data["harmonics"]:
 		harm_sum += abs(float(h["a"]))
-	var reach: float = r * (1.0 + harm_sum) * maxf(asp, 1.0)   # tallest body axis
-	reach = maxf(reach, r * 1.10)                              # feet + shadow baseline
-	if data.get("has_horns", false):
-		reach = maxf(reach, r * 0.72 + float(data.get("horn_len", 0.0)) + 12.0)
-	if data.get("rare", false):
-		reach = maxf(reach, r * 1.42)                          # aura rings + sparkles
+	var reach: float = r * (1.0 + harm_sum) * maxf(asp, 1.0)
+	reach = maxf(reach, r * 1.12)
+	if data.get("horn_style", "none") != "none":
+		reach = maxf(reach, r * 0.72 + float(data.get("horn_len", 0.0)) + 14.0)
+	if data.get("has_tail", false):
+		reach = maxf(reach, r * 1.30)
+	var rar: String = data.get("rarity", "common")
+	if RARITY_AURA.get(rar, 0.0) > 0.0:
+		reach = maxf(reach, r * (RARITY_AURA[rar] + 0.10))
 	return reach
 
-# Scale this view so its whole silhouette fits within `target` on-screen radius.
 func fit_to(target: float) -> void:
 	var e := content_extent()
 	if e > 0.0:
@@ -59,28 +63,15 @@ func _process(delta: float) -> void:
 func _draw() -> void:
 	if data.is_empty():
 		return
-	var pal: Dictionary = Pal.get_palette(data["element"])
+	var pal := _pal
 	var r: float = data["body_radius"]
 
-	# ground contact shadow (unscaled, sits under the creature so it feels planted)
 	var bob0 := sin(_phase * 2.2) * 6.0
 	var shadow_squish := 1.0 + bob0 * 0.012
-	_ellipse(Vector2(0, r * 1.06), r * 0.72 * shadow_squish, r * 0.16, Color(0, 0, 0, 0.22))
+	_ellipse(Vector2(0, r * 1.08), r * 0.72 * shadow_squish, r * 0.16, Color(0, 0, 0, 0.22))
 
-	# radiant rare: glowing aura rings + orbiting sparkles behind the body
-	if data.get("rare", false):
-		var acc: Color = pal["accent"]
-		var pulse := 0.5 + 0.5 * sin(_phase * 3.0)
-		for i in 3:
-			var rr := r * (1.12 + i * 0.13)
-			var a := 0.14 * (1.0 - i * 0.28) * (0.6 + 0.4 * pulse)
-			draw_arc(Vector2.ZERO, rr, 0, TAU, 48, Color(acc.r, acc.g, acc.b, a), 3.0 + i)
-		for i in 6:
-			var ang := _phase * 0.9 + TAU * float(i) / 6.0
-			var sp := Vector2(cos(ang), sin(ang)) * r * 1.28
-			draw_circle(sp, 4.0 + 2.0 * pulse, Color(acc.r, acc.g, acc.b, 0.85))
+	_draw_aura(r, pal)
 
-	# breathing: squash-and-stretch around a fixed baseline
 	var breathe := sin(_phase * 2.2) * 0.035
 	var sx: float = data["squash"] * (1.0 - breathe) * facing
 	var sy: float = (1.0 / data["squash"]) * (1.0 + breathe)
@@ -91,89 +82,247 @@ func _draw() -> void:
 	if _hit_flash > 0.0:
 		body = body.lerp(Color.WHITE, _hit_flash * 0.7)
 
-	# feet (behind body)
+	# --- behind-body layers ---
+	if data.get("has_tail", false):
+		_tail(r, pal)
 	if data["foot_count"] == 2:
-		_ellipse(Vector2(-r * 0.42, r * 0.86), 34, 22, pal["shade"])
-		_ellipse(Vector2(r * 0.42, r * 0.86), 34, 22, pal["shade"])
+		_ellipse(Vector2(-r * 0.42, r * 0.88), 34, 22, pal["shade"])
+		_ellipse(Vector2(r * 0.42, r * 0.88), 34, 22, pal["shade"])
+	_arms(r, pal)
+	if data.get("has_fins", false):
+		_fins(r, pal)
+	if data.get("has_spikes", false):
+		_spikes(r, pal)
+	_headgear(r, pal)
 
-	# horns (behind body, on top)
-	if data["has_horns"]:
-		var hl: float = data["horn_len"]
-		_horn(Vector2(-r * 0.34, -r * 0.72), -0.35, hl, pal["accent"], pal["shade"])
-		if data["horn_count"] == 2:
-			_horn(Vector2(r * 0.34, -r * 0.72), 0.35, hl, pal["accent"], pal["shade"])
-	elif data["has_ears"]:
-		_ellipse(Vector2(-r * 0.5, -r * 0.66), 26, 40, pal["shade"])
-		_ellipse(Vector2(r * 0.5, -r * 0.66), 26, 40, pal["shade"])
-
-	# body blob: outline first (slightly larger), then fill
+	# --- body: outline then fill ---
 	var pts := _blob_points(r)
 	var outline := _blob_points(r + 7.0)
 	draw_colored_polygon(outline, pal["shade"])
 	draw_colored_polygon(pts, body)
 
-	# belly highlight
-	_ellipse(Vector2(0, r * 0.34), r * 0.52, r * 0.44, pal["belly"])
-
-	# spots pattern
-	if data["pattern"] == "spots":
-		var srng := RandomNumberGenerator.new()
-		srng.seed = data["pattern_rng"]
-		for i in int(data["spot_count"]):
-			var a := srng.randf_range(-PI, PI)
-			var dist := srng.randf_range(0.3, 0.75) * r
-			var pos := Vector2(cos(a), sin(a)) * dist
-			_ellipse(pos, srng.randf_range(12, 22), srng.randf_range(12, 22), pal["shade"])
+	# belly + pattern
+	_ellipse(Vector2(0, r * 0.34 + data.get("top_bias", 0.0) * r), r * 0.52, r * 0.44, pal["belly"])
+	_pattern(r, pal)
 
 	_draw_face(r, pal)
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
-func _draw_face(r: float, pal: Dictionary) -> void:
-	var ey: float = data["eye_y"]
-	var es: float = data["eye_size"]
-	var spacing: float = data["eye_spacing"]
-	var positions: Array[Vector2] = []
-	match int(data["eye_count"]):
-		1: positions = [Vector2(0, ey)]
-		3: positions = [Vector2(-spacing, ey), Vector2(0, ey - 10), Vector2(spacing, ey)]
-		_: positions = [Vector2(-spacing * 0.5, ey), Vector2(spacing * 0.5, ey)]
+# --- aura / rarity flair ---
+func _draw_aura(r: float, pal: Dictionary) -> void:
+	var rar: String = data.get("rarity", "common")
+	var mult: float = RARITY_AURA.get(rar, 0.0)
+	if mult <= 0.0:
+		return
+	var acc: Color = pal["accent"]
+	var pulse := 0.5 + 0.5 * sin(_phase * 3.0)
+	var rings := 3 if rar == "rare" else (4 if rar == "epic" else 5)
+	for i in rings:
+		var rr := r * (1.02 + i * 0.11)
+		var a := 0.16 * (1.0 - i * 0.20) * (0.6 + 0.4 * pulse)
+		draw_arc(Vector2.ZERO, rr, 0, TAU, 48, Color(acc.r, acc.g, acc.b, a), 3.0 + i)
+	var sparks := 6 if rar == "rare" else (9 if rar == "epic" else 12)
+	for i in sparks:
+		var ang := _phase * 0.9 + TAU * float(i) / float(sparks)
+		var sp := Vector2(cos(ang), sin(ang)) * r * (mult + 0.04)
+		draw_circle(sp, 4.0 + 2.0 * pulse, Color(acc.r, acc.g, acc.b, 0.85))
 
-	# cheeks
-	_ellipse(Vector2(-spacing * 0.62, ey + es * 0.9), 16, 11, pal["cheek"])
-	_ellipse(Vector2(spacing * 0.62, ey + es * 0.9), 16, 11, pal["cheek"])
-
-	for p in positions:
-		var openness: float = 1.0 - _blink
-		if openness <= 0.05:
-			draw_line(p + Vector2(-es * 0.6, 0), p + Vector2(es * 0.6, 0), pal["shade"], 4.0)
-			continue
-		_ellipse(p, es, es * openness, Color.WHITE)
-		draw_arc(p, es, 0, TAU, 20, pal["shade"], 3.0)
-		# pupil looks slightly toward facing direction
-		var pup: Vector2 = p + Vector2(es * 0.22, es * 0.12)
-		draw_circle(pup, es * 0.5 * openness, Color("2b2b3a"))
-		draw_circle(pup + Vector2(-es * 0.15, -es * 0.18), es * 0.16, Color.WHITE)
-
-	# mouth (small friendly arc)
-	var mouth_y := ey + es * 1.5
-	draw_arc(Vector2(0, mouth_y), 12, 0.15 * PI, 0.85 * PI, 12, pal["shade"], 3.0)
-
-# --- helpers ---
-
+# --- body silhouette ---
 func _blob_points(r: float) -> PackedVector2Array:
 	var harm: Array = data["harmonics"]
-	var n := 64
+	var corner: float = data.get("corner", 0.0)
+	var tb: float = data.get("top_bias", 0.0)
+	var asp: float = data.get("aspect_y", 0.94)
+	var n := 72
 	var out := PackedVector2Array()
 	for i in n:
 		var ang := TAU * float(i) / float(n)
 		var m := 1.0
 		for h in harm:
 			m += float(h["a"]) * sin(ang * float(h["f"]) + float(h["p"]))
+		# squared-corner blend for "chonk" (superellipse-ish pull toward a rounded box)
+		var cx := cos(ang)
+		var cy := sin(ang)
+		if corner > 0.0:
+			var sq: float = 1.0 / max(0.35, pow(pow(abs(cx), 4.0) + pow(abs(cy), 4.0), 0.25))
+			m = lerp(m, m * sq, corner)
 		var rr := r * m
-		var asp: float = data.get("aspect_y", 0.94)
-		out.append(Vector2(cos(ang) * rr, sin(ang) * rr * asp))
+		var x := cx * rr
+		var y := cy * rr * asp
+		# top_bias shifts mass up (spike) or the point down (teardrop)
+		y += tb * r * (0.5 - 0.5 * cy)
+		out.append(Vector2(x, y))
 	return out
 
+# --- appendages ---
+func _headgear(r: float, pal: Dictionary) -> void:
+	var style: String = data.get("horn_style", "none")
+	if style == "none":
+		if data.get("has_ears", false):
+			_ellipse(Vector2(-r * 0.5, -r * 0.66), 26, 40, pal["shade"])
+			_ellipse(Vector2(r * 0.5, -r * 0.66), 26, 40, pal["shade"])
+		return
+	var hl: float = data.get("horn_len", 48.0)
+	var two: bool = int(data.get("horn_count", 2)) == 2
+	match style:
+		"nub":
+			_horn(Vector2(-r * 0.34, -r * 0.72), -0.35, hl * 0.6, pal["accent"], pal["shade"], 24, 9)
+			if two: _horn(Vector2(r * 0.34, -r * 0.72), 0.35, hl * 0.6, pal["accent"], pal["shade"], 24, 9)
+		"long":
+			_horn(Vector2(-r * 0.32, -r * 0.70), -0.28, hl, pal["accent"], pal["shade"], 20, 4)
+			if two: _horn(Vector2(r * 0.32, -r * 0.70), 0.28, hl, pal["accent"], pal["shade"], 20, 4)
+		"curved":
+			_curved_horn(Vector2(-r * 0.34, -r * 0.68), -1.0, hl, pal["accent"], pal["shade"])
+			if two: _curved_horn(Vector2(r * 0.34, -r * 0.68), 1.0, hl, pal["accent"], pal["shade"])
+		"antenna":
+			_antenna(Vector2(-r * 0.24, -r * 0.74), -0.25, hl, pal["accent"], pal["shade"])
+			if two: _antenna(Vector2(r * 0.24, -r * 0.74), 0.25, hl, pal["accent"], pal["shade"])
+		"crown":
+			_crown(r, pal)
+
+func _crown(r: float, pal: Dictionary) -> void:
+	var y := -r * 0.78
+	var pts := PackedVector2Array()
+	var w := r * 0.5
+	pts.append(Vector2(-w, y + 18))
+	var spikes := 5
+	for i in spikes + 1:
+		var t := float(i) / float(spikes)
+		var x: float = lerp(-w, w, t)
+		pts.append(Vector2(x - w / spikes * 0.5, y))
+		pts.append(Vector2(x, y - 28 - (10 if i == spikes / 2 else 0)))
+	pts.append(Vector2(w, y + 18))
+	draw_colored_polygon(pts, pal["accent"])
+	draw_polyline(pts, pal["shade"], 3.0)
+
+func _spikes(r: float, pal: Dictionary) -> void:
+	var rows := int(data.get("spike_rows", 4))
+	for i in rows:
+		var t: float = (float(i) / float(max(1, rows - 1))) - 0.5
+		var base := Vector2(t * r * 1.0, -r * (0.86 - absf(t) * 0.5))
+		var h: float = 26.0 + 10.0 * (1.0 - absf(t) * 1.4)
+		var tip := base + Vector2(t * 10.0, -h)
+		var pts := PackedVector2Array([base + Vector2(-11, 0), base + Vector2(11, 0), tip])
+		draw_colored_polygon(pts, pal["shade"])
+
+func _fins(r: float, pal: Dictionary) -> void:
+	for s in [-1.0, 1.0]:
+		var b := Vector2(s * r * 0.86, r * 0.05)
+		var pts := PackedVector2Array([
+			b + Vector2(0, -34), b + Vector2(s * 44, -6),
+			b + Vector2(s * 40, 30), b + Vector2(0, 30),
+		])
+		draw_colored_polygon(pts, pal["accent"])
+		draw_polyline(PackedVector2Array([b + Vector2(0,-34), b + Vector2(s*44,-6), b + Vector2(s*40,30)]), pal["shade"], 3.0)
+
+func _tail(r: float, pal: Dictionary) -> void:
+	var b := Vector2(-r * 0.7, r * 0.5)
+	var mid := b + Vector2(-r * 0.42, -r * 0.10)
+	var tip := mid + Vector2(-r * 0.18, -r * 0.30)
+	draw_polyline(PackedVector2Array([b, mid, tip]), pal["shade"], 16.0)
+	draw_circle(tip, 16.0, pal["accent"])
+
+func _arms(r: float, pal: Dictionary) -> void:
+	match String(data.get("arm_style", "none")):
+		"nubs":
+			_ellipse(Vector2(-r * 0.92, r * 0.18), 22, 18, pal["shade"])
+			_ellipse(Vector2(r * 0.92, r * 0.18), 22, 18, pal["shade"])
+		"arms":
+			for s in [-1.0, 1.0]:
+				var sh := Vector2(s * r * 0.82, r * 0.02)
+				var hand := sh + Vector2(s * r * 0.28, r * 0.22 + sin(_phase * 2.2) * 4.0)
+				draw_line(sh, hand, pal["shade"], 14.0)
+				draw_circle(hand, 15.0, pal["body"])
+
+func _pattern(r: float, pal: Dictionary) -> void:
+	match String(data.get("pattern", "none")):
+		"spots":
+			var srng := RandomNumberGenerator.new()
+			srng.seed = data["pattern_rng"]
+			for i in int(data["spot_count"]):
+				var a := srng.randf_range(-PI, PI)
+				var dist := srng.randf_range(0.3, 0.72) * r
+				_ellipse(Vector2(cos(a), sin(a)) * dist, srng.randf_range(12, 22), srng.randf_range(12, 22), pal["shade"])
+		"stripes":
+			for i in range(-2, 3):
+				var y := i * r * 0.24
+				var half := sqrt(max(0.0, 1.0 - pow(y / (r * 0.95), 2.0))) * r * 0.8
+				if half > 8.0:
+					draw_line(Vector2(-half, y), Vector2(half, y), Color(pal["shade"].r, pal["shade"].g, pal["shade"].b, 0.5), 8.0)
+
+# --- face ---
+func _draw_face(r: float, pal: Dictionary) -> void:
+	var ey: float = data["eye_y"]
+	var es: float = data["eye_size"]
+	var spacing: float = data["eye_spacing"]
+	var style: String = data.get("eye_style", "round")
+	var positions: Array[Vector2] = []
+	match int(data["eye_count"]):
+		1: positions = [Vector2(0, ey)]
+		3: positions = [Vector2(-spacing, ey), Vector2(0, ey - 10), Vector2(spacing, ey)]
+		_: positions = [Vector2(-spacing * 0.5, ey), Vector2(spacing * 0.5, ey)]
+
+	if style in ["round", "cute", "wide", "sleepy"]:
+		_ellipse(Vector2(-spacing * 0.62, ey + es * 0.9), 16, 11, pal["cheek"])
+		_ellipse(Vector2(spacing * 0.62, ey + es * 0.9), 16, 11, pal["cheek"])
+
+	for idx in positions.size():
+		var p: Vector2 = positions[idx]
+		var openness: float = 1.0 - _blink
+		if openness <= 0.05:
+			draw_line(p + Vector2(-es * 0.6, 0), p + Vector2(es * 0.6, 0), pal["shade"], 4.0)
+			continue
+		var w := es
+		var hgt := es * openness
+		match style:
+			"wide": w = es * 1.15; hgt = es * 1.15 * openness
+			"sleepy": hgt = es * 0.55 * openness
+			"sharp": w = es * 1.1; hgt = es * 0.7 * openness
+			"cute": w = es * 1.05; hgt = es * 1.05 * openness
+		_ellipse(p, w, hgt, Color.WHITE)
+		draw_arc(p, w, 0, TAU, 20, pal["shade"], 3.0)
+		var pup: Vector2 = p + Vector2(es * 0.20, es * 0.10)
+		draw_circle(pup, es * 0.5 * openness, Color("2b2b3a"))
+		var shine := (es * 0.20 if style == "cute" else es * 0.16)
+		draw_circle(pup + Vector2(-es * 0.15, -es * 0.18), shine, Color.WHITE)
+		# angry/sharp: a slanted brow lid biting into the eye
+		if style in ["angry", "sharp"]:
+			var dir := 1.0 if p.x < 0.0 else -1.0
+			var lid := PackedVector2Array([
+				p + Vector2(-w, -hgt * 0.9), p + Vector2(w, -hgt * 0.9),
+				p + Vector2(w, -hgt * (0.1 if dir > 0 else 1.3)),
+				p + Vector2(-w, -hgt * (1.3 if dir > 0 else 0.1)),
+			])
+			draw_colored_polygon(lid, pal["shade"])
+
+	_draw_mouth(r, pal, ey, es)
+
+func _draw_mouth(r: float, pal: Dictionary, ey: float, es: float) -> void:
+	var my := ey + es * 1.7
+	match String(data.get("mouth", "smile")):
+		"smile":
+			draw_arc(Vector2(0, my), 13, 0.15 * PI, 0.85 * PI, 14, pal["shade"], 3.0)
+		"frown":
+			draw_arc(Vector2(0, my + 10), 13, 1.15 * PI, 1.85 * PI, 14, pal["shade"], 3.0)
+		"cat":
+			draw_arc(Vector2(-7, my), 7, 0.1 * PI, 0.9 * PI, 8, pal["shade"], 3.0)
+			draw_arc(Vector2(7, my), 7, 0.1 * PI, 0.9 * PI, 8, pal["shade"], 3.0)
+		"open":
+			_ellipse(Vector2(0, my + 2), 14, 12, Color("5b2b3a"))
+			draw_arc(Vector2(0, my + 2), 14, 0, TAU, 18, pal["shade"], 2.0)
+		"fang":
+			draw_arc(Vector2(0, my), 15, 0.12 * PI, 0.88 * PI, 14, pal["shade"], 3.0)
+			for fx in [-9.0, 9.0]:
+				draw_colored_polygon(PackedVector2Array([
+					Vector2(fx - 4, my + 2), Vector2(fx + 4, my + 2), Vector2(fx, my + 14)
+				]), Color.WHITE)
+		"beak":
+			draw_colored_polygon(PackedVector2Array([
+				Vector2(-11, my - 3), Vector2(11, my - 3), Vector2(0, my + 13)
+			]), pal["accent"])
+			draw_polyline(PackedVector2Array([Vector2(-11, my-3), Vector2(0, my+13), Vector2(11, my-3)]), pal["shade"], 2.0)
+
+# --- primitives ---
 func _ellipse(center: Vector2, rx: float, ry: float, col: Color) -> void:
 	var n := 24
 	var pts := PackedVector2Array()
@@ -182,12 +331,8 @@ func _ellipse(center: Vector2, rx: float, ry: float, col: Color) -> void:
 		pts.append(center + Vector2(cos(a) * rx, sin(a) * ry))
 	draw_colored_polygon(pts, col)
 
-func _horn(base: Vector2, lean: float, length: float, col: Color, edge: Color) -> void:
-	# wider base + a short blunt tip (a 4-point shape, not a needle) so horns read
-	# as sturdy little nubs instead of thin spikes
+func _horn(base: Vector2, lean: float, length: float, col: Color, edge: Color, w: float = 24.0, tw: float = 7.0) -> void:
 	var tip := base + Vector2(sin(lean) * length * 0.5, -length)
-	var w := 24.0
-	var tw := 7.0  # tip half-width (blunt, not a point)
 	var tdir := (tip - base).normalized()
 	var perp := Vector2(-tdir.y, tdir.x)
 	var pts := PackedVector2Array([
@@ -198,3 +343,24 @@ func _horn(base: Vector2, lean: float, length: float, col: Color, edge: Color) -
 	draw_polyline(PackedVector2Array([
 		base + Vector2(-w, 6), tip - perp * tw, tip + perp * tw, base + Vector2(w, 6)
 	]), edge, 3.0)
+
+func _curved_horn(base: Vector2, dir: float, length: float, col: Color, edge: Color) -> void:
+	var pts := PackedVector2Array()
+	var segs := 8
+	for i in segs + 1:
+		var t := float(i) / float(segs)
+		var ang := dir * (0.3 + t * 1.1)
+		var p := base + Vector2(sin(ang) * length * 0.6 * dir, -cos(ang) * length)
+		pts.append(p + Vector2(-6 * (1.0 - t), 0))
+	for i in range(segs, -1, -1):
+		var t := float(i) / float(segs)
+		var ang := dir * (0.3 + t * 1.1)
+		var p := base + Vector2(sin(ang) * length * 0.6 * dir, -cos(ang) * length)
+		pts.append(p + Vector2(6 * (1.0 - t), 0))
+	draw_colored_polygon(pts, col)
+
+func _antenna(base: Vector2, lean: float, length: float, col: Color, edge: Color) -> void:
+	var wob := sin(_phase * 2.4 + base.x) * 6.0
+	var tip := base + Vector2(sin(lean) * length * 0.5 + wob, -length)
+	draw_line(base, tip, edge, 4.0)
+	draw_circle(tip, 8.0, col)

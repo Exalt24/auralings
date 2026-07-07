@@ -19,3 +19,21 @@ const ELEMENTS := ["ember", "tide", "moss", "spark", "frost", "void", "bloom", "
 
 static func get_palette(element: String) -> Dictionary:
 	return TABLE.get(element, TABLE["tide"])
+
+# Per-creature palette variation. Two same-element creatures should not be the same
+# color, but we stay INSIDE a harmony (small hue rotation + gentle sat/val nudges in
+# HSV) so the result is still curated, never random-RGB slop. hue_shift in [-1,1] maps
+# to ~±22deg; sat_mul / val_mul are small multipliers.
+static func varied(element: String, hue_shift: float, sat_mul: float, val_mul: float) -> Dictionary:
+	var base: Dictionary = get_palette(element)
+	var out := {}
+	for k in base.keys():
+		out[k] = _nudge(base[k], hue_shift, sat_mul, val_mul)
+	return out
+
+static func _nudge(c: Color, hue_shift: float, sat_mul: float, val_mul: float) -> Color:
+	var h := c.h + hue_shift * 0.061   # ~±22deg at full shift
+	h = fposmod(h, 1.0)
+	var s := clampf(c.s * sat_mul, 0.0, 1.0)
+	var v := clampf(c.v * val_mul, 0.0, 1.0)
+	return Color.from_hsv(h, s, v, c.a)

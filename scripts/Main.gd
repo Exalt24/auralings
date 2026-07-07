@@ -1,8 +1,10 @@
 extends Node2D
 
-# v0.1 shell: a summon screen that generates and displays a procedural Auraling.
-# Battle + LLM-authored identity land in the next slices. Everything is built in
-# code so the scene file stays trivial and unbreakable.
+# Summon screen. The whole UI is a proper Control LAYOUT TREE (MarginContainer ->
+# VBoxContainer with separation -> HBox rows), NOT hand-placed pixel coordinates, so
+# spacing is consistent and nothing crowds. All UI lives under summon_layer so battle/
+# bestiary can hide it (Controls are CanvasItems, so they respect the Node2D's
+# visibility — a CanvasLayer would NOT, which is why we don't use one here).
 
 const CreatureViewScript = preload("res://scripts/CreatureView.gd")
 const CreatureGenScript = preload("res://scripts/CreatureGen.gd")
@@ -10,38 +12,48 @@ const LLMScript = preload("res://scripts/LLM.gd")
 const BattleScript = preload("res://scripts/Battle.gd")
 const Fx = preload("res://scripts/Fx.gd")
 const Pal = preload("res://scripts/Palettes.gd")
+const UI = preload("res://scripts/UI.gd")
 const CollectionScript = preload("res://scripts/Collection.gd")
+const SfxScript = preload("res://scripts/Sfx.gd")
+const Settings = preload("res://scripts/Settings.gd")
 
 const W := 720
 const H := 1280
 const SAVE_PATH := "user://collection.json"
 
-var summon_layer: Node2D   # all summon UI lives here so battle can hide it
+var summon_layer: Node2D
 var creature_view
+var stage: Control
 var name_label: Label
+var rarity_pill_holder: HBoxContainer
 var sub_label: Label
 var lore_label: Label
 var stat_label: Label
 var ability_label: Label
 var seed_label: Label
 var toast_label: Label
+var count_label: Label
+var hint_label: Label
 var summon_btn: Button
 var battle_btn: Button
 var share_btn: Button
 var bestiary_btn: Button
 var llm
+var sfx
 var current_seed := 0
 var current_creature: Dictionary = {}
 var battle = null
 var collection_view = null
-var collection: Array = []   # [{seed:int, name:String}], newest first
+var collection: Array = []
+var _summons_done := 0
 var bg_top := Color("2a2140")
-var bg_bot := Color("4a3a6b")
+var bg_bot := Color("453763")
 
 func _ready() -> void:
 	_load_collection()
+	sfx = SfxScript.new()
+	add_child(sfx)
 	_build_ui()
-	# share-a-seed: on web, ?seed=N summons that exact creature on load
 	var shared := _shared_seed()
 	if shared >= 0:
 		_summon(shared)
@@ -49,149 +61,222 @@ func _ready() -> void:
 		_summon()
 
 func _draw() -> void:
-	# vertical gradient backdrop
 	draw_rect(Rect2(0, 0, W, H), bg_bot)
-	var steps := 32
+	var steps := 40
 	for i in steps:
 		var t := float(i) / float(steps)
-		var c := bg_top.lerp(bg_bot, t)
-		draw_rect(Rect2(0, H * t, W, H / steps + 1), c)
+		draw_rect(Rect2(0, H * t, W, H / steps + 1), bg_top.lerp(bg_bot, t))
+	for i in 6:
+		draw_circle(Vector2(W * 0.5, 400), 150.0 + i * 34.0, Color(0.55, 0.42, 0.85, 0.03))
 
 func _build_ui() -> void:
 	summon_layer = Node2D.new()
 	add_child(summon_layer)
-	# title
-	var title := Label.new()
-	title.text = "AURALINGS"
-	title.position = Vector2(0, 54)
-	title.size = Vector2(W, 40)
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 46)
-	title.add_theme_color_override("font_color", Color("ffe9c7"))
-	summon_layer.add_child(title)
 
-	var tagline := Label.new()
-	tagline.text = "every creature is generated, never hand-drawn"
-	tagline.position = Vector2(0, 104)
-	tagline.size = Vector2(W, 24)
-	tagline.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	tagline.add_theme_font_size_override("font_size", 20)
-	tagline.add_theme_color_override("font_color", Color("c9b8e8"))
-	summon_layer.add_child(tagline)
-
-	# creature stage
+	# creature is a Node2D drawn in world space, centered on the stage slot each layout
 	creature_view = CreatureViewScript.new()
-	creature_view.position = Vector2(W * 0.5, 470)
 	summon_layer.add_child(creature_view)
 
-	# info card
-	var card := ColorRect.new()
-	card.color = Color(1, 1, 1, 0.10)
-	card.position = Vector2(60, 716)
-	card.size = Vector2(W - 120, 284)
-	summon_layer.add_child(card)
+	var root := Control.new()
+	root.size = Vector2(W, H)
+	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	summon_layer.add_child(root)
 
-	name_label = _mk_label(Vector2(90, 728), 40, Color("ffffff"))
-	sub_label = _mk_label(Vector2(90, 774), 20, Color("c9b8e8"))
-	lore_label = _mk_label(Vector2(90, 804), 21, Color("e8dcff"))
-	lore_label.size = Vector2(W - 180, 70)
+	# accessibility toggles, top-right (SFX / reduce-motion). Green = on.
+	var settings_row := HBoxContainer.new()
+	settings_row.add_theme_constant_override("separation", 8)
+	settings_row.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
+	settings_row.offset_left = -220; settings_row.offset_top = 12
+	settings_row.offset_right = -12; settings_row.offset_bottom = 52
+	root.add_child(settings_row)
+	var mute_btn := Button.new()
+	mute_btn.text = "SFX"; mute_btn.toggle_mode = true; mute_btn.button_pressed = true
+	mute_btn.custom_minimum_size = Vector2(96, 40)
+	UI.style_button(mute_btn, UI.INK_SOFT, UI.MINT, 18, 12)
+	mute_btn.toggled.connect(func(on):
+		Settings.muted = not on
+		mute_btn.add_theme_color_override("font_color", UI.MINT if on else UI.TEXT_DIM)
+		if not Settings.muted and sfx: sfx.play("tap"))
+	settings_row.add_child(mute_btn)
+	var motion_btn := Button.new()
+	motion_btn.text = "MOTION"; motion_btn.toggle_mode = true; motion_btn.button_pressed = true
+	motion_btn.custom_minimum_size = Vector2(108, 40)
+	UI.style_button(motion_btn, UI.INK_SOFT, UI.MINT, 18, 12)
+	motion_btn.toggled.connect(func(on):
+		Settings.reduced_motion = not on
+		motion_btn.add_theme_color_override("font_color", UI.MINT if on else UI.TEXT_DIM)
+		if sfx: sfx.play("tap"))
+	settings_row.add_child(motion_btn)
+
+	var margin := MarginContainer.new()
+	margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	margin.add_theme_constant_override("margin_left", 42)
+	margin.add_theme_constant_override("margin_right", 42)
+	margin.add_theme_constant_override("margin_top", 40)
+	margin.add_theme_constant_override("margin_bottom", 34)
+	root.add_child(margin)
+
+	var col := VBoxContainer.new()
+	col.add_theme_constant_override("separation", 16)
+	margin.add_child(col)
+
+	# --- header ---
+	var header := VBoxContainer.new()
+	header.add_theme_constant_override("separation", 2)
+	col.add_child(header)
+	header.add_child(UI.label("AURALINGS", 46, UI.GOLD, HORIZONTAL_ALIGNMENT_CENTER))
+	header.add_child(UI.label("summon infinite creatures, drawn by code, named by AI", 18, UI.TEXT_DIM, HORIZONTAL_ALIGNMENT_CENTER))
+	count_label = UI.label("", 17, UI.MINT, HORIZONTAL_ALIGNMENT_CENTER)
+	header.add_child(count_label)
+
+	# --- stage (creature slot; grows to fill spare space) ---
+	stage = Control.new()
+	stage.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	stage.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	col.add_child(stage)
+	stage.resized.connect(_place_creature)
+	# hint + toast pinned to the bottom of the stage, centered
+	hint_label = UI.label("tap SUMMON to call a new one", 22, UI.GOLD, HORIZONTAL_ALIGNMENT_CENTER)
+	hint_label.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
+	hint_label.offset_top = -60; hint_label.offset_bottom = -30
+	stage.add_child(hint_label)
+	toast_label = UI.label("", 24, UI.MINT, HORIZONTAL_ALIGNMENT_CENTER)
+	toast_label.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
+	toast_label.offset_top = -28; toast_label.offset_bottom = 2
+	toast_label.modulate.a = 0.0
+	stage.add_child(toast_label)
+
+	# --- info card ---
+	var card := PanelContainer.new()
+	card.add_theme_stylebox_override("panel", UI.panel(UI.CARD, 26, Color(1,1,1,0.06), 2, 10))
+	col.add_child(card)
+	var cpad := MarginContainer.new()
+	cpad.add_theme_constant_override("margin_left", 26)
+	cpad.add_theme_constant_override("margin_right", 26)
+	cpad.add_theme_constant_override("margin_top", 18)
+	cpad.add_theme_constant_override("margin_bottom", 18)
+	card.add_child(cpad)
+	var cvb := VBoxContainer.new()
+	cvb.add_theme_constant_override("separation", 7)
+	cpad.add_child(cvb)
+
+	var name_row := HBoxContainer.new()
+	name_row.add_theme_constant_override("separation", 12)
+	cvb.add_child(name_row)
+	name_label = UI.label("", 38, UI.TEXT)
+	name_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	name_row.add_child(name_label)
+	rarity_pill_holder = HBoxContainer.new()
+	rarity_pill_holder.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	name_row.add_child(rarity_pill_holder)
+
+	sub_label = UI.label("", 20, UI.TEXT_DIM)
+	cvb.add_child(sub_label)
+	lore_label = UI.label("", 21, Color("e8dcff"))
 	lore_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	stat_label = _mk_label(Vector2(90, 890), 26, Color("ffe9c7"))
-	ability_label = _mk_label(Vector2(90, 926), 22, Color("9ff0d0"))
-	ability_label.size = Vector2(W - 180, 56)
+	lore_label.custom_minimum_size = Vector2(0, 58)
+	cvb.add_child(lore_label)
+	cvb.add_child(_spacer(4))
+	stat_label = UI.label("", 26, UI.GOLD)
+	cvb.add_child(stat_label)
+	ability_label = UI.label("", 21, UI.MINT)
 	ability_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	cvb.add_child(ability_label)
 
-	# seed line + share (share-a-seed): a link that re-summons this exact creature.
-	# sits in its own row with a clear gap above (card ends at 1000) and below.
-	seed_label = Label.new()
-	seed_label.position = Vector2(90, 1026)
-	seed_label.size = Vector2(300, 34)
-	seed_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	seed_label.add_theme_font_size_override("font_size", 18)
-	seed_label.add_theme_color_override("font_color", Color("9a8cc0"))
-	summon_layer.add_child(seed_label)
-
+	# --- seed + share row ---
+	var share_row := HBoxContainer.new()
+	share_row.add_theme_constant_override("separation", 14)
+	col.add_child(share_row)
+	seed_label = UI.label("", 18, Color("9a8cc0"))
+	seed_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	seed_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	share_row.add_child(seed_label)
 	share_btn = Button.new()
 	share_btn.text = "SHARE"
-	share_btn.position = Vector2(W - 220, 1018)
-	share_btn.size = Vector2(160, 50)
-	share_btn.add_theme_font_size_override("font_size", 22)
+	share_btn.custom_minimum_size = Vector2(170, 56)
+	UI.style_button(share_btn, UI.INK_SOFT, UI.TEXT, 22)
 	share_btn.pressed.connect(_share_seed)
-	summon_layer.add_child(share_btn)
+	share_row.add_child(share_btn)
 
-	# summon + battle buttons, side by side
+	# --- action row: summon + battle (equal width) ---
+	var actions := HBoxContainer.new()
+	actions.add_theme_constant_override("separation", 16)
+	col.add_child(actions)
 	summon_btn = Button.new()
 	summon_btn.text = "SUMMON"
-	summon_btn.position = Vector2(60, 1086)
-	summon_btn.size = Vector2(288, 84)
-	summon_btn.add_theme_font_size_override("font_size", 32)
+	summon_btn.custom_minimum_size = Vector2(0, 88)
+	summon_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	UI.style_button(summon_btn, Color("6b4fd0"), Color.WHITE, 34)
 	summon_btn.pressed.connect(_summon.bind(-1))
-	summon_layer.add_child(summon_btn)
-
+	actions.add_child(summon_btn)
 	battle_btn = Button.new()
 	battle_btn.text = "BATTLE"
-	battle_btn.position = Vector2(W - 348, 1086)
-	battle_btn.size = Vector2(288, 84)
-	battle_btn.add_theme_font_size_override("font_size", 32)
-	battle_btn.add_theme_color_override("font_color", Color("9ff0d0"))
+	battle_btn.custom_minimum_size = Vector2(0, 88)
+	battle_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	UI.style_button(battle_btn, Color("2f8f6b"), Color.WHITE, 34)
 	battle_btn.pressed.connect(_enter_battle)
-	summon_layer.add_child(battle_btn)
+	actions.add_child(battle_btn)
 
-	# bestiary of everything summoned so far
+	# --- bestiary (full width) ---
 	bestiary_btn = Button.new()
 	bestiary_btn.text = "BESTIARY"
-	bestiary_btn.position = Vector2(60, 1188)
-	bestiary_btn.size = Vector2(W - 120, 74)
-	bestiary_btn.add_theme_font_size_override("font_size", 30)
-	bestiary_btn.add_theme_color_override("font_color", Color("ffd7a8"))
+	bestiary_btn.custom_minimum_size = Vector2(0, 66)
+	UI.style_button(bestiary_btn, UI.INK_SOFT, UI.GOLD, 28)
 	bestiary_btn.pressed.connect(_open_collection)
-	summon_layer.add_child(bestiary_btn)
+	col.add_child(bestiary_btn)
 
-	# transient toast ("link copied!")
-	toast_label = Label.new()
-	toast_label.position = Vector2(0, 664)
-	toast_label.size = Vector2(W, 34)
-	toast_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	toast_label.add_theme_font_size_override("font_size", 24)
-	toast_label.add_theme_color_override("font_color", Color("9ff0d0"))
-	toast_label.modulate.a = 0.0
-	summon_layer.add_child(toast_label)
-
-	# LLM loremaster
 	llm = LLMScript.new()
 	summon_layer.add_child(llm)
 	llm.identity_ready.connect(_on_identity_ready)
-
+	_refresh_count()
+	call_deferred("_place_creature")
 	queue_redraw()
 
-func _mk_label(pos: Vector2, size: int, col: Color) -> Label:
-	var l := Label.new()
-	l.position = pos
-	l.size = Vector2(W - 180, 44)
-	l.add_theme_font_size_override("font_size", size)
-	l.add_theme_color_override("font_color", col)
-	summon_layer.add_child(l)
-	return l
+func _spacer(h: int) -> Control:
+	var s := Control.new()
+	s.custom_minimum_size = Vector2(0, h)
+	return s
+
+func _place_creature() -> void:
+	if stage and creature_view:
+		var c := stage.get_global_rect().get_center()
+		creature_view.position = c
+		creature_view.fit_to(min(stage.size.x, stage.size.y) * 0.5 - 8.0)
+
+func _refresh_count() -> void:
+	count_label.text = "%d discovered" % collection.size()
 
 func _summon(seed_val: int = -1) -> void:
 	var use_seed := seed_val if seed_val >= 0 else randi()
-	var c = CreatureGenScript.generate(use_seed)
+	var c: Dictionary = CreatureGenScript.generate(use_seed)
+	if seed_val < 0 and _summons_done == 0:
+		var tries := 0
+		while c.get("rarity", "common") == "common" and tries < 6:
+			use_seed = randi(); c = CreatureGenScript.generate(use_seed); tries += 1
+	_summons_done += 1
 	current_seed = int(c["seed"])
 	current_creature = c
 	seed_label.text = "seed  %d" % current_seed
 	creature_view.set_creature(c)
-	creature_view.fit_to(190.0)   # uniform footprint regardless of body/horns/aura
+	_place_creature()
 	creature_view.flash_hit()
-	# summon spark burst, tinted by the creature's element (brighter for rares)
-	var pal: Dictionary = Pal.get_palette(c["element"])
-	Fx.burst(summon_layer, creature_view.position, pal["accent"], (40 if c.get("rare", false) else 26))
+	if hint_label:
+		hint_label.modulate.a = max(0.0, hint_label.modulate.a - 1.0)
+	var pal: Dictionary = Pal.varied(c["element"], c.get("hue_shift", 0.0), c.get("sat_mul", 1.0), c.get("val_mul", 1.0))
+	var rar: String = c.get("rarity", "common")
+	Fx.burst(summon_layer, creature_view.position, pal["accent"], (46 if rar != "common" else 26))
+	if sfx:
+		sfx.play("summon")
+		if rar != "common":
+			sfx.play("rare", 1.0)
 	_add_to_collection(current_seed, String(c["name"]))
-	# show the body + procedural fallback instantly; the LLM enriches the words
+	_refresh_count()
 	name_label.text = c["name"]
-	var prefix := "RARE  ·  " if c.get("rare", false) else ""
-	sub_label.text = "%s%s  ·  %s" % [prefix, String(c["element"]).capitalize(), c["archetype"]]
-	stat_label.text = "HP %d      ATK %d" % [c["hp"], c["atk"]]
-	ability_label.text = "*" + c["ability_name"]
+	name_label.add_theme_color_override("font_color", UI.rarity_color(rar) if rar != "common" else UI.TEXT)
+	_set_rarity_pill(rar)
+	sub_label.text = "%s  ·  %s" % [String(c["element"]).capitalize(), c["archetype"]]
+	stat_label.text = "HP %d    ATK %d    SPD %d" % [c["hp"], c["atk"], c["spd"]]
+	ability_label.text = "✦ " + c["ability_name"]
 	if llm.has_key():
 		lore_label.text = "summoning its story…"
 		summon_btn.disabled = true
@@ -200,11 +285,18 @@ func _summon(seed_val: int = -1) -> void:
 	else:
 		lore_label.text = "A wandering %s spirit." % String(c["element"]).capitalize()
 
+func _set_rarity_pill(rarity: String) -> void:
+	for ch in rarity_pill_holder.get_children():
+		ch.queue_free()
+	if rarity == "common":
+		return
+	rarity_pill_holder.add_child(UI.rarity_pill(rarity))
+
 func _on_identity_ready(seed_val: int, identity: Dictionary) -> void:
 	summon_btn.disabled = false
 	summon_btn.text = "SUMMON"
 	if seed_val != current_seed:
-		return  # a newer summon superseded this one
+		return
 	if identity.is_empty():
 		lore_label.text = "Its story is lost to static…"
 		return
@@ -219,14 +311,16 @@ func _on_identity_ready(seed_val: int, identity: Dictionary) -> void:
 	var abil_name := String(identity.get("ability_name", ""))
 	var abil_desc := String(identity.get("ability_desc", ""))
 	if abil_name.length() > 0:
-		ability_label.text = "*%s: %s" % [abil_name, abil_desc]
+		ability_label.text = "✦ %s: %s" % [abil_name, abil_desc]
 		current_creature["ability_name"] = abil_name
 
 func _enter_battle() -> void:
 	if current_creature.is_empty() or battle != null:
 		return
+	if sfx: sfx.play("tap")
 	summon_layer.visible = false
 	battle = BattleScript.new()
+	battle.sfx = sfx
 	battle.setup(current_creature)
 	battle.battle_over.connect(_on_battle_over)
 	add_child(battle)
@@ -238,13 +332,13 @@ func _on_battle_over(_player_won: bool) -> void:
 	summon_layer.visible = true
 	_summon()
 
-# --- collection / bestiary ---
-
 func _open_collection() -> void:
 	if collection_view != null:
 		return
+	if sfx: sfx.play("tap")
 	summon_layer.visible = false
 	collection_view = CollectionScript.new()
+	collection_view.sfx = sfx
 	collection_view.setup(collection)
 	collection_view.closed.connect(_on_collection_closed)
 	add_child(collection_view)
@@ -256,12 +350,14 @@ func _on_collection_closed() -> void:
 	summon_layer.visible = true
 
 func _add_to_collection(seed_val: int, nm: String) -> void:
-	# dedupe by seed, newest first
 	for i in collection.size():
 		if int(collection[i].get("seed", -1)) == seed_val:
 			collection.remove_at(i)
 			break
-	collection.push_front({"seed": seed_val, "name": nm})
+	var rar := "common"
+	if not current_creature.is_empty():
+		rar = String(current_creature.get("rarity", "common"))
+	collection.push_front({"seed": seed_val, "name": nm, "rarity": rar})
 	if collection.size() > 300:
 		collection.resize(300)
 	_save_collection()
@@ -288,8 +384,6 @@ func _save_collection() -> void:
 	if f != null:
 		f.store_string(JSON.stringify(collection))
 
-# --- share-a-seed ---
-
 func _shared_seed() -> int:
 	if not OS.has_feature("web"):
 		return -1
@@ -299,17 +393,23 @@ func _shared_seed() -> int:
 	return -1
 
 func _share_seed() -> void:
+	if sfx: sfx.play("tap")
+	var rar := String(current_creature.get("rarity", "common"))
+	var star := "★" if rar != "common" else ""
+	var line := "I summoned %s %s the %s Auraling %s" % [
+		star, current_creature.get("name", "?"),
+		String(current_creature.get("element", "")).capitalize(), star]
 	var link := "seed %d" % current_seed
 	if OS.has_feature("web"):
 		var origin = JavaScriptBridge.eval("window.location.origin + window.location.pathname", true)
 		if typeof(origin) == TYPE_STRING:
 			link = String(origin) + "?seed=" + str(current_seed)
-	DisplayServer.clipboard_set(link)
-	_toast("link copied!")
+	DisplayServer.clipboard_set(line + "\n" + link)
+	_toast("copied! share your Auraling")
 
 func _toast(msg: String) -> void:
 	toast_label.text = msg
 	toast_label.modulate.a = 1.0
 	var tw := create_tween()
-	tw.tween_interval(1.1)
+	tw.tween_interval(1.3)
 	tw.tween_property(toast_label, "modulate:a", 0.0, 0.6)
