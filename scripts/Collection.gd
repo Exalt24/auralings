@@ -64,7 +64,7 @@ func _build_chrome() -> void:
 	legend.alignment = BoxContainer.ALIGNMENT_CENTER
 	add_child(legend)
 	for r in ["rare", "epic", "legendary"]:
-		var dot := UI.label("● " + r, 15, UI.rarity_color(r))
+		var dot := UI.label("• " + r, 15, UI.rarity_color(r))
 		legend.add_child(dot)
 
 	# sort toggle (newest / rarity). No search or filter — at this collection size that
@@ -81,14 +81,14 @@ func _build_chrome() -> void:
 	add_child(_page_label)
 
 	_prev_btn = Button.new()
-	_prev_btn.text = "‹ PREV"
+	_prev_btn.text = "< PREV"
 	_prev_btn.position = Vector2(40, 1116); _prev_btn.size = Vector2(180, 64)
 	UI.style_button(_prev_btn, UI.INK_SOFT, UI.TEXT, 24)
 	_prev_btn.pressed.connect(func(): _turn(-1))
 	add_child(_prev_btn)
 
 	_next_btn = Button.new()
-	_next_btn.text = "NEXT ›"
+	_next_btn.text = "NEXT >"
 	_next_btn.position = Vector2(W - 220, 1116); _next_btn.size = Vector2(180, 64)
 	UI.style_button(_next_btn, UI.INK_SOFT, UI.TEXT, 24)
 	_next_btn.pressed.connect(func(): _turn(1))

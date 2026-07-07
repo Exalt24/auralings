@@ -141,7 +141,7 @@ func _build() -> void:
 	vb.add_child(action_bar)
 	attack_btn = _act_btn("ATTACK", Color("6b4fd0"), Color.WHITE)
 	attack_btn.pressed.connect(func(): _player_act("attack"))
-	ability_btn = _act_btn("✦ " + String(player["ability_name"]), Color("2f8f6b"), Color.WHITE, 22)
+	ability_btn = _act_btn("• " + String(player["ability_name"]), Color("2f8f6b"), Color.WHITE, 22)
 	ability_btn.pressed.connect(func(): _player_act("ability"))
 	charge_btn = _act_btn("CHARGE", Color("b8862f"), Color.WHITE, 24)
 	charge_btn.pressed.connect(func(): _player_act("charge"))
@@ -330,8 +330,8 @@ func _strike(player_is_attacker: bool, mult: float, is_ability: bool) -> void:
 		log_label.text += "  Super effective!"
 		# super-effective ability inflicts BURN
 		if is_ability:
-			if player_is_attacker: enemy_burn = 3; _set_status(e_status, "🔥 burn")
-			else: player_burn = 3; _set_status(p_status, "🔥 burn")
+			if player_is_attacker: enemy_burn = 3; _set_status(e_status, "BURN")
+			else: player_burn = 3; _set_status(p_status, "BURN")
 	elif type_mult < 1.0:
 		log_label.text += "  Resisted…"
 
@@ -356,11 +356,11 @@ func _burn_tick(is_player: bool) -> void:
 	if is_player:
 		player_hp = max(0, player_hp - dmg); player_burn -= 1
 		_set_bar(p_fill, p_hp_label, player_hp, int(player["max_hp"]), _p_bar_w)
-		_set_status(p_status, "🔥 burn" if player_burn > 0 else "")
+		_set_status(p_status, "BURN" if player_burn > 0 else "")
 	else:
 		enemy_hp = max(0, enemy_hp - dmg); enemy_burn -= 1
 		_set_bar(e_fill, e_hp_label, enemy_hp, int(enemy["max_hp"]), _e_bar_w)
-		_set_status(e_status, "🔥 burn" if enemy_burn > 0 else "")
+		_set_status(e_status, "BURN" if enemy_burn > 0 else "")
 	log_label.text = "%s is hurt by its burn!" % String(who["name"])
 	await get_tree().create_timer(_t(0.35)).timeout
 	if (is_player and player_hp <= 0) or (not is_player and enemy_hp <= 0):
@@ -406,9 +406,9 @@ func _refresh_buttons() -> void:
 	charge_btn.disabled = busy or finished or player_charged
 	ability_btn.disabled = busy or finished or player_cd > 0
 	if player_cd > 0:
-		ability_btn.text = "✦ ready in %d" % player_cd
+		ability_btn.text = "• ready in %d" % player_cd
 	else:
-		ability_btn.text = "✦ " + String(player["ability_name"])
+		ability_btn.text = "• " + String(player["ability_name"])
 	charge_btn.text = "CHARGED!" if player_charged else "CHARGE"
 
 func _end(player_won: bool) -> void:
