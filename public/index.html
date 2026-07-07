@@ -30,13 +30,8 @@ canvas, #canvas { display: block; margin: 0 auto; background: #2a2140; }
 	color: #ffe9c7; text-shadow: 0 2px 26px rgba(107, 79, 208, 0.55);
 }
 #brand-tag { margin-top: 12px; font-size: clamp(14px, 3.6vw, 20px); color: #c9b8e8; }
-#brand-orbit {
-	margin-top: 30px; width: 64px; height: 64px; border-radius: 50%;
-	border: 4px solid rgba(159, 240, 208, 0.18); border-top-color: #9ff0d0;
-	animation: spin 0.9s linear infinite;
-}
 #bar {
-	margin-top: 30px; width: min(62%, 300px); height: 12px; border-radius: 999px;
+	margin-top: 34px; width: min(62%, 300px); height: 12px; border-radius: 999px;
 	background: rgba(255, 255, 255, 0.12); overflow: hidden;
 }
 #bar-inner {
@@ -53,7 +48,6 @@ canvas, #canvas { display: block; margin: 0 auto; background: #2a2140; }
 	color: #ffe0e0; line-height: 1.3; margin: 1.4rem 2rem 0; padding: 1rem;
 	text-align: center; z-index: 6; display: none; max-width: 80%;
 }
-@keyframes spin { to { transform: rotate(360deg); } }
 @keyframes slide { 0% { margin-left: -38%; } 100% { margin-left: 100%; } }
 @keyframes pulse { 0%, 100% { opacity: 0.45; } 50% { opacity: 1; } }
 		</style>
@@ -69,7 +63,6 @@ canvas, #canvas { display: block; margin: 0 auto; background: #2a2140; }
 			<div id="brand-wrap">
 				<div id="brand">AURALINGS</div>
 				<div id="brand-tag">summon infinite creatures, drawn by code, named by AI</div>
-				<div id="brand-orbit"></div>
 				<div id="bar"><div id="bar-inner" class="indet"></div></div>
 				<div id="brand-hint">summoning</div>
 			</div>
@@ -80,7 +73,7 @@ canvas, #canvas { display: block; margin: 0 auto; background: #2a2140; }
 
 		<script src="index.js"></script>
 		<script>
-const GODOT_CONFIG = {"args":[],"canvasResizePolicy":2,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"index","experimentalVK":false,"fileSizes":{"index.pck":92752,"index.wasm":37686550},"focusCanvas":true,"gdextensionLibs":[],"godotPoolSize":4};
+const GODOT_CONFIG = {"args":[],"canvasResizePolicy":2,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"index","experimentalVK":false,"fileSizes":{"index.pck":96072,"index.wasm":37686550},"focusCanvas":true,"gdextensionLibs":[],"godotPoolSize":4};
 const GODOT_THREADS_ENABLED = false;
 const engine = new Engine(GODOT_CONFIG);
 
@@ -89,7 +82,6 @@ const engine = new Engine(GODOT_CONFIG);
 	const statusProgress = document.getElementById('status-progress');
 	const statusNotice = document.getElementById('status-notice');
 	const barInner = document.getElementById('bar-inner');
-	const orbit = document.getElementById('brand-orbit');
 
 	let initializing = true;
 	let statusMode = '';
@@ -105,8 +97,8 @@ const engine = new Engine(GODOT_CONFIG);
 		}
 		statusOverlay.style.visibility = 'visible';
 		statusNotice.style.display = mode === 'notice' ? 'block' : 'none';
-		if (orbit) {
-			orbit.style.display = mode === 'notice' ? 'none' : 'block';
+		if (barInner) {
+			barInner.style.display = mode === 'notice' ? 'none' : 'block';
 		}
 		statusMode = mode;
 	}
