@@ -397,10 +397,13 @@ func _shared_seed() -> int:
 func _share_seed() -> void:
 	if sfx: sfx.play("tap")
 	var rar := String(current_creature.get("rarity", "common"))
-	var star := "*" if rar != "common" else ""
-	var line := "I summoned %s %s the %s Auraling %s" % [
-		star, current_creature.get("name", "?"),
-		String(current_creature.get("element", "")).capitalize(), star]
+	var elem := String(current_creature.get("element", "")).capitalize()
+	var nm := String(current_creature.get("name", "?"))
+	var line := ""
+	if rar != "common":
+		line = "I summoned %s, a %s %s Auraling! Summon yours:" % [nm, rar.to_upper(), elem]
+	else:
+		line = "I summoned %s the %s Auraling! Summon yours:" % [nm, elem]
 	var link := "seed %d" % current_seed
 	if OS.has_feature("web"):
 		var origin = JavaScriptBridge.eval("window.location.origin + window.location.pathname", true)
