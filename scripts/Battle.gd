@@ -226,6 +226,7 @@ func _info_panel(is_player: bool) -> void:
 	var nm := UI.label(String(c["name"]), 24, UI.rarity_color(rar) if rar != "common" else UI.TEXT)
 	nm.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	top.add_child(nm)
+	top.add_child(UI.label("ATK %d" % int(c["atk"]), 17, UI.GOLD))
 	top.add_child(UI.label("SPD %d" % int(c["spd"]), 17, UI.TEXT_DIM))
 
 	vb.add_child(UI.label(String(c["element"]).capitalize(), 16, UI.TEXT_DIM))
