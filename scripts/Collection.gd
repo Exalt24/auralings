@@ -19,6 +19,7 @@ const ROWS := 3
 const PAGE := COLS * ROWS
 
 const RARITY_RANK := {"legendary": 0, "epic": 1, "rare": 2, "common": 3}
+const ROLE_RANK := {"Warden": 0, "Berserker": 1, "Skirmisher": 2, "Adept": 3}
 
 var entries: Array = []
 var _order: Array = []        # the currently displayed order (sorted view)
@@ -126,8 +127,9 @@ func _turn(dir: int) -> void:
 	_render_page()
 
 func _toggle_sort() -> void:
-	_sort = "rarity" if _sort == "newest" else "newest"
-	_sort_btn.text = "SORT: RARITY" if _sort == "rarity" else "SORT: NEWEST"
+	# cycle Newest -> Rarity -> Role (role groups your champions by playstyle)
+	_sort = {"newest": "rarity", "rarity": "role", "role": "newest"}[_sort]
+	_sort_btn.text = "SORT: " + _sort.to_upper()
 	if sfx: sfx.play("tap")
 	_apply_sort()
 	_page = 0
@@ -135,7 +137,20 @@ func _toggle_sort() -> void:
 
 func _apply_sort() -> void:
 	_order = entries.duplicate()
-	if _sort == "rarity":
+	if _sort == "role":
+		# group by role, ties keep newest-first order
+		var indexed := []
+		for i in _order.size():
+			var role := String(CreatureGenScript.generate(int(_order[i].get("seed", 0))).get("role", "Adept"))
+			indexed.append({"e": _order[i], "i": i, "r": ROLE_RANK.get(role, 9)})
+		indexed.sort_custom(func(a, b):
+			if a["r"] == b["r"]:
+				return a["i"] < b["i"]
+			return a["r"] < b["r"])
+		_order.clear()
+		for item in indexed:
+			_order.append(item["e"])
+	elif _sort == "rarity":
 		# stable sort: rarest first, ties keep newest-first order
 		var indexed := []
 		for i in _order.size():
