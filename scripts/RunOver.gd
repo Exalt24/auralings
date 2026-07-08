@@ -5,6 +5,7 @@ extends Node2D
 
 signal share_pressed
 signal continue_pressed
+signal shop_pressed
 
 const UI = preload("res://scripts/UI.gd")
 const CreatureViewScript = preload("res://scripts/CreatureView.gd")
@@ -15,13 +16,15 @@ var champion: Dictionary = {}
 var streak := 0
 var best := 0
 var is_new_best := false
+var essence_earned := 0
 var sfx = null
 
-func setup(champ: Dictionary, streak_val: int, best_val: int, new_best: bool) -> void:
+func setup(champ: Dictionary, streak_val: int, best_val: int, new_best: bool, essence: int = 0) -> void:
 	champion = champ
 	streak = streak_val
 	best = best_val
 	is_new_best = new_best
+	essence_earned = essence
 
 func _ready() -> void:
 	_build()
@@ -57,20 +60,34 @@ func _build() -> void:
 	stats.add_child(UI.label(str(streak), 84, UI.GOLD, HORIZONTAL_ALIGNMENT_CENTER))
 	var best_txt := ("NEW BEST!" if is_new_best else "best  %d" % best)
 	stats.add_child(UI.label(best_txt, 26, UI.MINT if is_new_best else UI.TEXT_DIM, HORIZONTAL_ALIGNMENT_CENTER))
+	stats.add_child(UI.label("+%d essence" % essence_earned, 22, UI.GOLD, HORIZONTAL_ALIGNMENT_CENTER))
 
 	# buttons
 	var row := VBoxContainer.new()
-	row.position = Vector2(60, H - 240); row.size = Vector2(W - 120, 200)
-	row.add_theme_constant_override("separation", 16)
+	row.position = Vector2(60, H - 320); row.size = Vector2(W - 120, 290)
+	row.add_theme_constant_override("separation", 14)
 	add_child(row)
+	var top := HBoxContainer.new()
+	top.add_theme_constant_override("separation", 14)
+	row.add_child(top)
 	var share := Button.new()
-	share.text = "SHARE STREAK"
-	share.custom_minimum_size = Vector2(0, 76)
-	UI.style_button(share, UI.INK_SOFT, UI.MINT, 26)
+	share.text = "SHARE"
+	share.custom_minimum_size = Vector2(0, 68)
+	share.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	UI.style_button(share, UI.INK_SOFT, UI.MINT, 24)
 	share.pressed.connect(func():
 		if sfx: sfx.play("tap")
 		share_pressed.emit())
-	row.add_child(share)
+	top.add_child(share)
+	var shop := Button.new()
+	shop.text = "UPGRADES"
+	shop.custom_minimum_size = Vector2(0, 68)
+	shop.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	UI.style_button(shop, UI.INK_SOFT, UI.GOLD, 24)
+	shop.pressed.connect(func():
+		if sfx: sfx.play("tap")
+		shop_pressed.emit())
+	top.add_child(shop)
 	var cont := Button.new()
 	cont.text = "NEW CHAMPION"
 	cont.custom_minimum_size = Vector2(0, 84)

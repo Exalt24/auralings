@@ -19,6 +19,8 @@ const Settings = preload("res://scripts/Settings.gd")
 const SettingsMenuScript = preload("res://scripts/SettingsMenu.gd")
 const BoonChoiceScript = preload("res://scripts/BoonChoice.gd")
 const RunOverScript = preload("res://scripts/RunOver.gd")
+const AchievementsScript = preload("res://scripts/Achievements.gd")
+const ShopViewScript = preload("res://scripts/ShopView.gd")
 const META_PATH := "user://meta.json"
 
 # gauntlet boon pool (run-altering choice; 3 offered each win)
@@ -67,6 +69,24 @@ var _round := 1
 var _streak := 0
 var _best_streak := 0
 var _run_set_best := false
+var _achievements: Array = []
+var _essence := 0
+var _upgrades := {"vigor": 0, "might": 0, "insight": 0}
+var _boon_count := 3
+var shop_view = null
+var _last_rarity := ""
+
+# bounded meta upgrades (kept small so the enemy ramp still ends runs; final tuning is
+# a playtest job). cost[i] = essence to buy level i+1.
+const UPGRADES := [
+	{"id": "vigor", "name": "Vigor", "desc": "+8 champion start HP per level", "max": 3, "cost": [4, 8, 14]},
+	{"id": "might", "name": "Might", "desc": "+2 champion start ATK per level", "max": 3, "cost": [5, 10, 16]},
+	{"id": "insight", "name": "Insight", "desc": "Draft 4 boons instead of 3", "max": 1, "cost": [12]},
+]
+var _ach_layer: CanvasLayer
+var _ach_panel: PanelContainer
+var _ach_label: Label
+var _ach_view = null
 var _summons_done := 0
 var bg_top := Color("2a2140")
 var bg_bot := Color("453763")
@@ -77,6 +97,7 @@ func _ready() -> void:
 	sfx = SfxScript.new()
 	add_child(sfx)
 	_build_ui()
+	_build_ach_toast()
 	var shared := _shared_seed()
 	if shared >= 0:
 		_summon(shared)
@@ -209,20 +230,31 @@ func _build_ui() -> void:
 	summon_btn.pressed.connect(_summon.bind(-1))
 	actions.add_child(summon_btn)
 	battle_btn = Button.new()
-	battle_btn.text = "BATTLE"
+	battle_btn.text = "GAUNTLET"
 	battle_btn.custom_minimum_size = Vector2(0, 88)
 	battle_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	UI.style_button(battle_btn, Color("2f8f6b"), Color.WHITE, 34)
+	UI.style_button(battle_btn, Color("2f8f6b"), Color.WHITE, 32)
 	battle_btn.pressed.connect(_start_run)
 	actions.add_child(battle_btn)
 
-	# --- bestiary (full width) ---
+	# --- bestiary + upgrades row ---
+	var nav := HBoxContainer.new()
+	nav.add_theme_constant_override("separation", 16)
+	col.add_child(nav)
 	bestiary_btn = Button.new()
 	bestiary_btn.text = "BESTIARY"
 	bestiary_btn.custom_minimum_size = Vector2(0, 66)
-	UI.style_button(bestiary_btn, UI.INK_SOFT, UI.GOLD, 28)
+	bestiary_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	UI.style_button(bestiary_btn, UI.INK_SOFT, UI.GOLD, 26)
 	bestiary_btn.pressed.connect(_open_collection)
-	col.add_child(bestiary_btn)
+	nav.add_child(bestiary_btn)
+	var up_btn := Button.new()
+	up_btn.text = "UPGRADES"
+	up_btn.custom_minimum_size = Vector2(0, 66)
+	up_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	UI.style_button(up_btn, UI.INK_SOFT, UI.MINT, 26)
+	up_btn.pressed.connect(_open_shop)
+	nav.add_child(up_btn)
 
 	# gear settings menu, added LAST so it sits on top of the layout and is clickable
 	settings_menu = SettingsMenuScript.new()
@@ -235,6 +267,22 @@ func _build_ui() -> void:
 	_refresh_count()
 	call_deferred("_place_creature")
 	queue_redraw()
+
+func _build_ach_toast() -> void:
+	# a CanvasLayer stays visible over every screen (summon/battle/boon/run-over), so
+	# achievement pops show even mid-run when summon_layer is hidden
+	_ach_layer = CanvasLayer.new()
+	_ach_layer.layer = 50
+	add_child(_ach_layer)
+	var pc := PanelContainer.new()
+	pc.add_theme_stylebox_override("panel", UI.panel(Color("2f2650"), 16, UI.GOLD, 2, 8))
+	pc.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
+	pc.offset_left = 90; pc.offset_right = -90; pc.offset_top = 150; pc.offset_bottom = 214
+	pc.visible = false
+	_ach_layer.add_child(pc)
+	_ach_panel = pc
+	_ach_label = UI.label("", 22, UI.GOLD, HORIZONTAL_ALIGNMENT_CENTER)
+	pc.add_child(_ach_label)
 
 func _spacer(h: int) -> Control:
 	var s := Control.new()
@@ -280,6 +328,8 @@ func _summon(seed_val: int = -1) -> void:
 			sfx.play("rare", 1.0)
 	_add_to_collection(current_seed, String(c["name"]))
 	_refresh_count()
+	_last_rarity = rar
+	_check_achievements()
 	name_label.text = c["name"]
 	name_label.add_theme_color_override("font_color", UI.rarity_color(rar) if rar != "common" else UI.TEXT)
 	_set_rarity_pill(rar)
@@ -330,7 +380,11 @@ func _start_run() -> void:
 	if sfx: sfx.play("tap")
 	if settings_menu: settings_menu.collapse()
 	_champion = current_creature.duplicate(true)
+	# apply bounded meta upgrades to the champion for this run
+	_champion["max_hp"] = int(_champion["max_hp"]) + 8 * int(_upgrades["vigor"])
+	_champion["atk"] = int(_champion["atk"]) + 2 * int(_upgrades["might"])
 	_champion["hp"] = int(_champion["max_hp"])
+	_boon_count = 3 + (1 if int(_upgrades["insight"]) > 0 else 0)
 	_round = 1
 	_streak = 0
 	_run_set_best = false
@@ -367,6 +421,7 @@ func _on_round_over(player_won: bool, champ_hp: int) -> void:
 			_best_streak = _streak
 			_run_set_best = true
 			_save_meta()
+		_check_achievements()
 		_show_boon()
 	else:
 		_show_run_over()
@@ -376,7 +431,7 @@ func _show_boon() -> void:
 	pool.shuffle()
 	boon_view = BoonChoiceScript.new()
 	boon_view.sfx = sfx
-	boon_view.setup(_champion, pool.slice(0, 3), _streak)
+	boon_view.setup(_champion, pool.slice(0, _boon_count), _streak)
 	boon_view.picked.connect(_on_boon_picked)
 	add_child(boon_view)
 
@@ -404,12 +459,44 @@ func _apply_boon(id: String) -> void:
 			_champion["atk"] = int(_champion["atk"]) + 3
 
 func _show_run_over() -> void:
+	# award meta essence for the run (= streak reached), spent later on upgrades
+	_essence += _streak
+	_save_meta()
 	run_over_view = RunOverScript.new()
 	run_over_view.sfx = sfx
-	run_over_view.setup(_champion, _streak, _best_streak, _run_set_best)
+	run_over_view.setup(_champion, _streak, _best_streak, _run_set_best, _streak)
 	run_over_view.share_pressed.connect(_share_streak)
 	run_over_view.continue_pressed.connect(_end_run)
+	run_over_view.shop_pressed.connect(_open_shop)
 	add_child(run_over_view)
+
+func _open_shop() -> void:
+	if shop_view != null:
+		return
+	if sfx: sfx.play("tap")
+	shop_view = ShopViewScript.new()
+	shop_view.sfx = sfx
+	shop_view.setup(_essence, _upgrades, UPGRADES)
+	shop_view.bought.connect(_buy_upgrade)
+	shop_view.closed.connect(_close_shop)
+	add_child(shop_view)
+
+func _buy_upgrade(id: String) -> void:
+	for d in UPGRADES:
+		if String(d["id"]) == id:
+			var lvl := int(_upgrades.get(id, 0))
+			if lvl < int(d["max"]) and _essence >= int(d["cost"][lvl]):
+				_essence -= int(d["cost"][lvl])
+				_upgrades[id] = lvl + 1
+				_save_meta()
+				if shop_view != null:
+					shop_view.refresh(_essence, _upgrades)
+			return
+
+func _close_shop() -> void:
+	if shop_view != null:
+		shop_view.queue_free()
+		shop_view = null
 
 func _end_run() -> void:
 	if run_over_view != null:
@@ -489,13 +576,47 @@ func _load_meta() -> void:
 	if f == null:
 		return
 	var data = JSON.parse_string(f.get_as_text())
-	if typeof(data) == TYPE_DICTIONARY and data.has("best_streak"):
-		_best_streak = int(data["best_streak"])
+	if typeof(data) == TYPE_DICTIONARY:
+		if data.has("best_streak"):
+			_best_streak = int(data["best_streak"])
+		if data.has("achievements") and typeof(data["achievements"]) == TYPE_ARRAY:
+			_achievements = data["achievements"]
+		if data.has("essence"):
+			_essence = int(data["essence"])
+		if data.has("upgrades") and typeof(data["upgrades"]) == TYPE_DICTIONARY:
+			for k in _upgrades.keys():
+				if data["upgrades"].has(k):
+					_upgrades[k] = int(data["upgrades"][k])
 
 func _save_meta() -> void:
 	var f := FileAccess.open(META_PATH, FileAccess.WRITE)
 	if f != null:
-		f.store_string(JSON.stringify({"best_streak": _best_streak}))
+		f.store_string(JSON.stringify({
+			"best_streak": _best_streak, "achievements": _achievements,
+			"essence": _essence, "upgrades": _upgrades,
+		}))
+
+func _check_achievements() -> void:
+	var earned: Array = AchievementsScript.earned(_streak, _best_streak, collection.size(), _last_rarity)
+	for id in earned:
+		if not _achievements.has(id):
+			_achievements.append(id)
+			_save_meta()
+			_ach_toast(AchievementsScript.name_of(id))
+
+func _ach_toast(nm: String) -> void:
+	# shown on a CanvasLayer so it appears over ANY screen (summon/battle/boon/run-over)
+	if _ach_panel == null:
+		return
+	if sfx: sfx.play("rare")
+	_ach_label.text = "Achievement:  %s" % nm
+	_ach_panel.modulate.a = 0.0
+	_ach_panel.visible = true
+	var tw := create_tween()
+	tw.tween_property(_ach_panel, "modulate:a", 1.0, 0.25)
+	tw.tween_interval(1.9)
+	tw.tween_property(_ach_panel, "modulate:a", 0.0, 0.5)
+	tw.tween_callback(func(): _ach_panel.visible = false)
 
 func _share_streak() -> void:
 	if sfx: sfx.play("tap")
