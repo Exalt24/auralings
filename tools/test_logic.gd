@@ -81,6 +81,14 @@ func _ready() -> void:
 	if main.battle: main.battle.queue_free(); main.battle = null
 	for i in 3: await get_tree().process_frame
 
+	# ---- (6) underdog essence multiplier ----
+	var em_c: float = main._essence_mult("common")
+	var em_l: float = main._essence_mult("legendary")
+	var e_common: int = int(round(10.0 * em_c))
+	var e_leg: int = int(round(10.0 * em_l))
+	print("TEST6 mult common=%.2f(want1.5) legendary=%.2f(want1.0)  streak10 -> common %d(want15) leg %d(want10)" % [em_c, em_l, e_common, e_leg])
+	print("TEST6 %s" % ("PASS" if em_c == 1.5 and em_l == 1.0 and e_common == 15 and e_leg == 10 else "FAIL"))
+
 	main.queue_free()
 	for i in 3: await get_tree().process_frame
 

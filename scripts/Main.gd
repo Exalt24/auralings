@@ -496,12 +496,17 @@ func _apply_boon(id: String) -> void:
 			_champion["atk"] = int(_champion["atk"]) + 3
 
 func _show_run_over() -> void:
-	# award meta essence for the run (= streak reached), spent later on upgrades
-	_essence += _streak
+	# award meta essence for the run (streak * an underdog multiplier — lower-rarity
+	# champions earn MORE, so running a common is a real reward-path, not a handicap;
+	# legendaries keep their higher-streak ceiling instead. Rewards variety w/o a nerf.
+	var mult := _essence_mult(String(_champion.get("rarity", "common")))
+	var earned := int(round(float(_streak) * mult))
+	_essence += earned
 	_save_meta()
 	run_over_view = RunOverScript.new()
 	run_over_view.sfx = sfx
-	run_over_view.setup(_champion, _streak, _best_streak, _run_set_best, _streak)
+	run_over_view.setup(_champion, _streak, _best_streak, _run_set_best, earned)
+	run_over_view.essence_mult = mult
 	run_over_view.share_pressed.connect(_share_streak)
 	run_over_view.continue_pressed.connect(_end_run)
 	run_over_view.shop_pressed.connect(_open_shop)
@@ -584,6 +589,15 @@ func _wins_for(seed_val: int) -> int:
 
 func _level_from_wins(wins: int) -> int:
 	return mini(5, wins / 3)  # +1 level per 3 wins, capped at 5 so it can't break balance
+
+func _essence_mult(rarity: String) -> float:
+	# underdog bonus: rarer champs climb to a higher streak, so lower rarity gets a
+	# richer essence multiplier to keep them a viable meta-farm (reward variety, no nerf)
+	match rarity:
+		"legendary": return 1.0
+		"epic": return 1.15
+		"rare": return 1.3
+		_: return 1.5
 
 func _add_win(seed_val: int) -> void:
 	for e in collection:
