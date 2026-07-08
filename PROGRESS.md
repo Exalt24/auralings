@@ -24,6 +24,12 @@ Toast + collection overhaul (2026-07-08, web-researched to diminishing returns):
 - **Battle cards now show ATK** (gold) next to SPD, so boon/upgrade/level bonuses are visible/verifiable on screen (was name/SPD/HP only). `Battle.gd`.
 - **Underdog essence bonus** (answers "no downside to always picking legendary" — researched: reward variety, never nerf the optimal pick). Run-end essence = streak × rarity multiplier (common 1.5 / rare 1.3 / epic 1.15 / legendary 1.0). A legendary climbs to a higher streak; a common pays comparable essence, so both are viable meta-farms and the pick has a real tradeoff without punishing rarity. Run-over shows "underdog bonus xN". `_essence_mult` + `_show_run_over` in `Main.gd`, display in `RunOver.gd`. Verified TEST6 (PASS).
 
+## BALANCE PASS (2026-07-08, sim-tuned, no human playtest needed) — live
+Built `tools/balance_sim.gd` (BalanceSim.tscn): a headless Monte Carlo that mirrors Battle.gd's combat math + `_scaled_enemy` ramp + boons + role signatures + level/upgrade bonuses and runs 3000 full gauntlets per scenario, reporting streak distribution overall + per role + per rarity. Excluded from web export (tools/*).
+- **Found + fixed a severe wall:** at full-parity round-1 enemies, fresh runs medianed streak 0-1 (players lost the first fight and would bounce). Grid-searched the ramp; now enemies start BELOW parity and scale up. `_scaled_enemy` in Main.gd: `hp_mul = 0.42 + 0.10*(r-1)`, `atk_mul = 0.52 + 0.06*(r-1)`.
+- **Post-tune (3000 runs):** FRESH overall median **6** (p25 3, p75 9, max ~29). Roles balanced (Warden/Berserker/Skirmisher 6, Adept 5). Rarity common 5 / rare 7 / epic 11 / legendary 16. Leveled(L5) median 9, Maxed-meta median 9. Bounded, nothing trivializes.
+- Re-run anytime: `Godot --headless tools/BalanceSim.tscn`. All logic tests still PASS.
+
 ## CURRENT STATE (2026-07-08) — research-driven overhaul, live + verified
 
 Big quality pass grounded in a web-research sweep (see `DESIGN_UPGRADE.md`), all shipped to https://auralings.vercel.app and verified live via Playwright (mobile + desktop, 0 console errors, driven through summon/bestiary/battle):
