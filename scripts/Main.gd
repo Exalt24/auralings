@@ -393,14 +393,16 @@ func _share_seed() -> void:
 			link = String(origin) + "?seed=" + str(current_seed)
 	var full := line + "\n" + link
 	if OS.has_feature("web"):
-		# DisplayServer.clipboard_set is unreliable on Chrome web, so copy via JS
-		# (async Clipboard API) with a textarea/execCommand fallback. We're inside a
-		# button-press gesture, which is what the browser requires.
-		var js := "(function(t){try{if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t);return;}}catch(e){}var a=document.createElement('textarea');a.value=t;a.style.position='fixed';a.style.opacity='0';document.body.appendChild(a);a.focus();a.select();try{document.execCommand('copy');}catch(_){}document.body.removeChild(a);})(%s);" % JSON.stringify(full)
+		# Prefer the native share sheet (Web Share API, great on mobile: opens the OS
+		# "share to..." menu). Fall back to clipboard copy (navigator.clipboard, then a
+		# textarea/execCommand fallback). All inside the button-press gesture browsers require.
+		var has_share = JavaScriptBridge.eval("(typeof navigator!=='undefined' && typeof navigator.share==='function')", true)
+		var js := "(function(txt,url){var full=txt+'\\n'+url;if(navigator.share){navigator.share({title:'Auralings',text:txt,url:url}).catch(function(){});return;}try{if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(full);return;}}catch(e){}var a=document.createElement('textarea');a.value=full;a.style.position='fixed';a.style.opacity='0';document.body.appendChild(a);a.focus();a.select();try{document.execCommand('copy');}catch(_){}document.body.removeChild(a);})(%s,%s);" % [JSON.stringify(line), JSON.stringify(link)]
 		JavaScriptBridge.eval(js)
+		_toast("opening share..." if has_share == true else "copied! share your Auraling")
 	else:
 		DisplayServer.clipboard_set(full)
-	_toast("copied! share your Auraling")
+		_toast("copied! share your Auraling")
 
 func _toast(msg: String) -> void:
 	toast_label.text = msg
