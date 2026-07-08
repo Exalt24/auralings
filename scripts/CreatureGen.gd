@@ -14,6 +14,27 @@ const SYL_A := ["mo", "lu", "pi", "za", "no", "fi", "ku", "ta", "vy", "sha", "bo
 const SYL_B := ["ru", "mi", "la", "po", "nu", "ki", "sa", "to", "fu", "byn", "lo", "qua", "xis", "ven", "dor", "eth"]
 const ARCHETYPES := ["Sprout", "Guardian", "Trickster", "Wanderer", "Ember", "Sage", "Brawler", "Dreamer"]
 
+# each archetype maps to a battle ROLE (tank / attacker / speedster / balanced) with a
+# stat spread + a signature trait, so the label is a real, learnable mechanic, not flavor
+const ARCHETYPE_ROLE := {
+	"Guardian": "Warden", "Sprout": "Warden",
+	"Brawler": "Berserker", "Ember": "Berserker",
+	"Wanderer": "Skirmisher", "Trickster": "Skirmisher",
+	"Sage": "Adept", "Dreamer": "Adept",
+}
+const ROLE_TRAIT := {
+	"Warden": {"name": "Bulwark", "desc": "takes 15% less damage"},
+	"Berserker": {"name": "Frenzy", "desc": "+30% damage under 40% HP"},
+	"Skirmisher": {"name": "Evasion", "desc": "18% chance to dodge"},
+	"Adept": {"name": "Focus", "desc": "ability recharges faster"},
+}
+const ROLE_SPREAD := {
+	"Warden": {"hp": 1.18, "atk": 0.95, "spd": 0.90},
+	"Berserker": {"hp": 0.90, "atk": 1.22, "spd": 1.00},
+	"Skirmisher": {"hp": 0.92, "atk": 0.98, "spd": 1.30},
+	"Adept": {"hp": 1.05, "atk": 1.05, "spd": 1.00},
+}
+
 # Shape language: each element leans to a temperament, but with off-picks for variety.
 # round=friendly, spike=fierce(triangle), chonk=sturdy(square), tall=lanky, teardrop=pear.
 const SHAPES := ["round", "tall", "wide", "teardrop", "spike", "chonk"]
@@ -86,6 +107,7 @@ static func generate(seed_val: int) -> Dictionary:
 			rarity = RARITY[i]
 			break
 	var rare := rarity != "common"
+	var archetype: String = ARCHETYPES[rng.randi() % ARCHETYPES.size()]
 
 	var hp := rng.randi_range(60, 120)
 	var atk := rng.randi_range(12, 26)
@@ -94,6 +116,14 @@ static func generate(seed_val: int) -> Dictionary:
 		"rare":      hp += 15; atk += 4; spd += 2
 		"epic":      hp += 30; atk += 8; spd += 4
 		"legendary": hp += 50; atk += 14; spd += 7
+
+	# role stat spread (tank/attacker/speedster/balanced) — bounded redistribution so the
+	# archetype is a real, learnable trait; enemies get theirs too, so it stays symmetric
+	var role: String = ARCHETYPE_ROLE.get(archetype, "Adept")
+	var spread: Dictionary = ROLE_SPREAD[role]
+	hp = int(round(float(hp) * float(spread["hp"])))
+	atk = maxi(1, int(round(float(atk) * float(spread["atk"]))))
+	spd = maxi(1, int(round(float(spd) * float(spread["spd"]))))
 
 	# --- face: independent of element (orthogonal) ---
 	var eye_style: String = EYE_STYLES[rng.randi() % EYE_STYLES.size()]
@@ -112,7 +142,10 @@ static func generate(seed_val: int) -> Dictionary:
 		"seed": seed_val,
 		"name": name,
 		"element": element,
-		"archetype": ARCHETYPES[rng.randi() % ARCHETYPES.size()],
+		"archetype": archetype,
+		"role": role,
+		"trait": String(ROLE_TRAIT[role]["name"]),
+		"trait_desc": String(ROLE_TRAIT[role]["desc"]),
 		"rarity": rarity,
 		"rare": rare,
 		"hp": hp, "max_hp": hp, "atk": atk, "spd": spd,

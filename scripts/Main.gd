@@ -45,6 +45,7 @@ var sub_label: Label
 var lore_label: Label
 var stat_label: Label
 var ability_label: Label
+var trait_label: Label
 var seed_label: Label
 var toast_label: Label
 var count_label: Label
@@ -234,6 +235,9 @@ func _build_ui() -> void:
 	ability_label = UI.label("", 21, UI.MINT)
 	ability_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	cvb.add_child(ability_label)
+	trait_label = UI.label("", 18, UI.TEXT_DIM)
+	trait_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	cvb.add_child(trait_label)
 
 	# --- seed + share row ---
 	var share_row := HBoxContainer.new()
@@ -365,12 +369,15 @@ func _summon(seed_val: int = -1) -> void:
 	name_label.text = c["name"]
 	name_label.add_theme_color_override("font_color", UI.rarity_color(rar) if rar != "common" else UI.TEXT)
 	_set_rarity_pill(rar)
-	sub_label.text = "%s  ·  %s" % [String(c["element"]).capitalize(), c["archetype"]]
+	sub_label.text = "%s  ·  %s" % [String(c["element"]).capitalize(), String(c.get("role", ""))]
 	stat_label.text = "HP %d    ATK %d    SPD %d" % [c["hp"], c["atk"], c["spd"]]
 	var lv := _level_from_wins(_wins_for(current_seed))
 	if lv > 0:
 		stat_label.text += "    Lv %d" % lv
-	ability_label.text = "• " + c["ability_name"]
+	# ability line = the AI-authored NAME + what it ACTUALLY does (all abilities are a
+	# signature strike; the AI names the move but no longer describes fake mechanics)
+	ability_label.text = "• %s  —  signature strike, 1.8x damage (burns if super effective)" % c["ability_name"]
+	trait_label.text = "%s trait, %s: %s" % [String(c.get("role", "")), String(c.get("trait", "")), String(c.get("trait_desc", ""))]
 	if llm.has_key():
 		lore_label.text = "summoning its story..."
 		summon_btn.disabled = true
@@ -403,10 +410,11 @@ func _on_identity_ready(seed_val: int, identity: Dictionary) -> void:
 		sub_label.text = title + "  ·  " + sub_label.text
 	lore_label.text = String(identity.get("lore", lore_label.text))
 	var abil_name := String(identity.get("ability_name", ""))
-	var abil_desc := String(identity.get("ability_desc", ""))
 	if abil_name.length() > 0:
-		ability_label.text = "• %s: %s" % [abil_name, abil_desc]
+		# keep the AI's cool move NAME, but describe the true mechanic (all abilities are
+		# the same 1.8x strike) so the text never promises a fake effect like "heals allies"
 		current_creature["ability_name"] = abil_name
+		ability_label.text = "• %s  —  signature strike, 1.8x damage (burns if super effective)" % abil_name
 
 # --- The Gauntlet: a roguelite run ---
 func _start_run() -> void:

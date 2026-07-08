@@ -232,7 +232,10 @@ func _info_panel(is_player: bool) -> void:
 	top.add_child(UI.label("ATK %d" % int(c["atk"]), 17, UI.GOLD))
 	top.add_child(UI.label("SPD %d" % int(c["spd"]), 17, UI.TEXT_DIM))
 
-	vb.add_child(UI.label(String(c["element"]).capitalize(), 16, UI.TEXT_DIM))
+	var role_txt := String(c["element"]).capitalize()
+	if c.has("role"):
+		role_txt += "  ·  %s (%s)" % [String(c["role"]), String(c.get("trait", ""))]
+	vb.add_child(UI.label(role_txt, 16, UI.TEXT_DIM))
 
 	# hp bar — anchor-driven so it always fills the card width exactly (responsive) and
 	# clips, instead of a hardcoded 268px width that overflowed the right-anchored card
@@ -329,8 +332,10 @@ func _resolve(is_player: bool, action: String) -> void:
 	var mult := 1.0
 	if action == "ability":
 		mult = 1.8
-		if is_player: player_cd = ABILITY_CD
-		else: enemy_cd = ABILITY_CD
+		# Adept "Focus": ability recharges one turn faster
+		var cd := ABILITY_CD - (1 if String(attacker.get("role", "")) == "Adept" else 0)
+		if is_player: player_cd = cd
+		else: enemy_cd = cd
 		log_label.text = "%s unleashes %s!" % [name, attacker["ability_name"]]
 		if sfx: sfx.play("ability")
 	else:
@@ -352,16 +357,33 @@ func _strike(player_is_attacker: bool, mult: float, is_ability: bool) -> void:
 	var defender := enemy if player_is_attacker else player
 	var type_mult := _type_mult(attacker["element"], defender["element"])
 	var dmg := int(round(max(1.0, float(attacker["atk"]) * mult * type_mult * randf_range(0.9, 1.1))))
-	var crit := mult >= 2.5 or type_mult > 1.0
+	# --- role signatures ---
+	# Berserker "Frenzy": +30% damage while below 40% HP
+	if String(attacker.get("role", "")) == "Berserker":
+		var ahp := player_hp if player_is_attacker else enemy_hp
+		if float(ahp) < 0.4 * float(attacker["max_hp"]):
+			dmg = int(round(float(dmg) * 1.3))
+	# Skirmisher "Evasion": chance to dodge entirely; else Warden "Bulwark": -15% taken
+	var dodged := String(defender.get("role", "")) == "Skirmisher" and randf() < 0.18
+	if dodged:
+		dmg = 0
+	elif String(defender.get("role", "")) == "Warden":
+		dmg = int(round(float(dmg) * 0.85))
+	var crit := (mult >= 2.5 or type_mult > 1.0) and not dodged
 
 	# hitstop: a brief freeze so the blow lands with weight
 	await get_tree().create_timer(_t(0.07)).timeout
 
 	var target_view = e_view if player_is_attacker else p_view
-	target_view.flash_hit()
-	_shake = (14.0 if crit else 7.0) * Settings.motion_scale()
-	_float_number(target_view.position, dmg, Color("fff0a0") if crit else Color.WHITE)
-	if sfx: sfx.play("crit" if crit else "hurt")
+	if dodged:
+		log_label.text = "%s dodged!" % String(defender["name"])
+		target_view.flash_hit()
+		if sfx: sfx.play("tap")
+	else:
+		target_view.flash_hit()
+		_shake = (14.0 if crit else 7.0) * Settings.motion_scale()
+		_float_number(target_view.position, dmg, Color("fff0a0") if crit else Color.WHITE)
+		if sfx: sfx.play("crit" if crit else "hurt")
 
 	if player_is_attacker:
 		enemy_hp = max(0, enemy_hp - dmg)
@@ -370,14 +392,15 @@ func _strike(player_is_attacker: bool, mult: float, is_ability: bool) -> void:
 		player_hp = max(0, player_hp - dmg)
 		_set_bar(p_fill, p_hp_label, player_hp, int(player["max_hp"]), _p_bar_w)
 
-	if type_mult > 1.0:
-		log_label.text += " Super effective!"
-		# super-effective ability inflicts BURN
-		if is_ability:
-			if player_is_attacker: enemy_burn = 3; _set_status(e_status, "BURN")
-			else: player_burn = 3; _set_status(p_status, "BURN")
-	elif type_mult < 1.0:
-		log_label.text += " Resisted..."
+	if not dodged:
+		if type_mult > 1.0:
+			log_label.text += " Super effective!"
+			# super-effective ability inflicts BURN
+			if is_ability:
+				if player_is_attacker: enemy_burn = 3; _set_status(e_status, "BURN")
+				else: player_burn = 3; _set_status(p_status, "BURN")
+		elif type_mult < 1.0:
+			log_label.text += " Resisted..."
 
 	var dead := enemy_hp <= 0 if player_is_attacker else player_hp <= 0
 	if dead:
