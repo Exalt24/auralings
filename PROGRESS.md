@@ -6,6 +6,13 @@
 `"E:/Game Editors/.../Godot_v4.6-stable_win64_console.exe" --path . --headless --quit` (parse-check).
 Render screenshots (real render, not headless): run `res://tools/Capture.tscn` → PNGs in `_shots/`.
 
+## POLISH FIXES (2026-07-08, later pass) — live + verified
+Three UX fixes from Daniel's phone playtest, all shipped + render-verified:
+- **SHARE gave no feedback:** the `_toast()` label lived inside `summon_layer`, which is hidden during battle/run-over, so tapping SHARE on the run-over screen updated a label nobody could see (the share itself worked). Moved the toast onto its own `CanvasLayer` (layer 51, same pattern as the proven achievement toast on layer 50) so it shows over every screen, with a dark outline for legibility. `Main.gd`.
+- **TURBO was cryptic:** the battle toggle now reads `SPEED: 1x` / `SPEED: 3x` instead of `TURBO: OFF/ON` (it multiplies animation timing by 0.35 = ~3x faster). `Battle.gd`.
+- **Run-over button spacing tight:** bumped the VBox separation 14->24 so the primary NEW CHAMPION button breathes below the SHARE/UPGRADES row. `RunOver.gd`.
+Verified via `tools/CaptureRun.tscn` + `CaptureBattle.tscn` renders (`_shots/runover.png`, `battle_0.png`).
+
 ## CURRENT STATE (2026-07-08) — research-driven overhaul, live + verified
 
 Big quality pass grounded in a web-research sweep (see `DESIGN_UPGRADE.md`), all shipped to https://auralings.vercel.app and verified live via Playwright (mobile + desktop, 0 console errors, driven through summon/bestiary/battle):

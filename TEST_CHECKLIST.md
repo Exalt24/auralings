@@ -10,11 +10,11 @@ Legend: ✅ = already auto-verified (Playwright/render/logic test, 0 console err
 - [ ] ⭐ After the FIRST tap you hear a summon blip (audio) — Daniel confirmed working 2026-07-08
 - [ ] Occasionally hit RARE / EPIC / LEGENDARY (colored pill + aura)
 - [ ] ✅ Gear (top-right) expands → Sound + Reduce Motion toggle & flip; re-tap collapses; resets after leaving a screen
-- [ ] ✅ SHARE → share sheet on phone / clipboard fallback (verified copies the text + link)
+- [ ] ✅ SHARE → share sheet on phone / clipboard fallback; ⭐ confirm you now SEE a "copied to clipboard!" / "opening share..." toast pop (fixed 2026-07-08, it was invisible before)
 
 ## The Gauntlet (core loop)
 - [ ] ✅ GAUNTLET → fight shows "ROUND 1 · STREAK 0"
-- [ ] ATTACK / ability / CHARGE work; "Super effective!" / "Resisted" show; BURN can proc; TURBO speeds it up
+- [ ] ATTACK / ability / CHARGE work; "Super effective!" / "Resisted" show; BURN can proc; ⭐ SPEED: 1x/3x toggle speeds the battle up (renamed from TURBO 2026-07-08)
 - [ ] ✅ Win → CHOOSE A BOON → pick one → ROUND 2 · STREAK 1, HP carried over
 - [ ] ✅ Boons apply correctly (heal / fortify / power / focus / swift, all logic-tested)
 - [ ] Climb a few rounds → lose → RUN OVER shows streak, best, "+N essence"
