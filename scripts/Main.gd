@@ -397,7 +397,7 @@ func _share_seed() -> void:
 		# "share to..." menu). Fall back to clipboard copy (navigator.clipboard, then a
 		# textarea/execCommand fallback). All inside the button-press gesture browsers require.
 		var has_share = JavaScriptBridge.eval("(typeof navigator!=='undefined' && typeof navigator.share==='function')", true)
-		var js := "(function(txt,url){var full=txt+'\\n'+url;if(navigator.share){navigator.share({title:'Auralings',text:txt,url:url}).catch(function(){});return;}try{if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(full);return;}}catch(e){}var a=document.createElement('textarea');a.value=full;a.style.position='fixed';a.style.opacity='0';document.body.appendChild(a);a.focus();a.select();try{document.execCommand('copy');}catch(_){}document.body.removeChild(a);})(%s,%s);" % [JSON.stringify(line), JSON.stringify(link)]
+		var js := "(function(txt,url){var full=txt+'\\n'+url;function copy(){try{if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(full);return;}}catch(e){}var a=document.createElement('textarea');a.value=full;a.style.position='fixed';a.style.opacity='0';document.body.appendChild(a);a.focus();a.select();try{document.execCommand('copy');}catch(_){}document.body.removeChild(a);}if(navigator.share){navigator.share({title:'Auralings',text:txt,url:url}).catch(function(){copy();});return;}copy();})(%s,%s);" % [JSON.stringify(line), JSON.stringify(link)]
 		JavaScriptBridge.eval(js)
 		_toast("opening share..." if has_share == true else "copied! share your Auraling")
 	else:
