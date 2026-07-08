@@ -1,0 +1,37 @@
+# Auralings — Test Checklist
+
+Play at **https://auralings.vercel.app** (best on a phone, it's a mobile game).
+
+Legend: ✅ = already auto-verified (Playwright/render/logic test, 0 console errors) · ⭐ = needs your human judgment.
+
+## Load + summon
+- [ ] ✅ Branded AURALINGS loader → game appears
+- [ ] Tap SUMMON ~6x → each creature clearly different
+- [ ] ⭐ After the FIRST tap you hear a summon blip (audio) — Daniel confirmed working 2026-07-08
+- [ ] Occasionally hit RARE / EPIC / LEGENDARY (colored pill + aura)
+- [ ] ✅ Gear (top-right) expands → Sound + Reduce Motion toggle & flip; re-tap collapses; resets after leaving a screen
+- [ ] ✅ SHARE → share sheet on phone / clipboard fallback (verified copies the text + link)
+
+## The Gauntlet (core loop)
+- [ ] ✅ GAUNTLET → fight shows "ROUND 1 · STREAK 0"
+- [ ] ATTACK / ability / CHARGE work; "Super effective!" / "Resisted" show; BURN can proc; TURBO speeds it up
+- [ ] ✅ Win → CHOOSE A BOON → pick one → ROUND 2 · STREAK 1, HP carried over
+- [ ] ✅ Boons apply correctly (heal / fortify / power / focus / swift, all logic-tested)
+- [ ] Climb a few rounds → lose → RUN OVER shows streak, best, "+N essence"
+- [ ] ✅ NEW CHAMPION returns cleanly to summon
+
+## Meta (achievements + upgrades)
+- [ ] ✅ "Achievement: …" toast pops (shows even mid-battle)
+- [ ] ✅ UPGRADES: Essence shown, BUY deducts, BACK works
+- [ ] ✅ Buy Vigor/Might → next run champion starts stronger (logic-tested: +8 HP/lvl, +2 ATK/lvl)
+- [ ] ✅ Buy Insight → boon screen shows 4 cards, no overflow
+
+## Bestiary + persistence
+- [ ] ✅ Rarity-bordered cards, "N discovered", SORT flips Newest/Rarity, PREV/NEXT page
+- [ ] ✅ Reload page → discovered count + best streak survive (verified)
+
+## The one thing only you can judge
+- [ ] ⭐ **Balance / feel:** does a run last a satisfying number of rounds, or snowball too long / wall too early? If it's off, tell Claude and the enemy-scaling / boon / upgrade numbers get tuned (`_scaled_enemy` in `scripts/Main.gd`, boon values in `_apply_boon`, upgrade steps in `UPGRADES`).
+
+---
+Almost everything is auto-verified. The real remaining task is the ⭐ **balance playtest**, then send the L7V email + Tally on your GO.
