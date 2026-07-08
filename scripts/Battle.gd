@@ -56,6 +56,7 @@ var charge_btn: Button
 var turbo_btn: Button
 var banner: Label
 var action_bar: HBoxContainer
+var _ui_root: Control
 var _p_bar_w := 268.0
 var _e_bar_w := 268.0
 var _shake := 0.0
@@ -107,30 +108,35 @@ func _build() -> void:
 	p_view.fit_to(156.0)
 	world.add_child(p_view)
 
-	# info panels anchored to opposite corners (proper anchors, no magic overlap)
-	_info_panel(Vector2(36, 96), enemy, false)
-	_info_panel(Vector2(W - 336, 690), player, true)
+	# all UI lives on one root Control (creatures stay in `world`); every piece is
+	# anchored to its region so nothing is raw-positioned and it scales on any device
+	_ui_root = Control.new()
+	_ui_root.size = Vector2(W, H)
+	_ui_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_ui_root)
 
-	# log (own rounded strip)
+	# info panels pinned to opposite corners (anchored, so they never drift onto a creature)
+	_info_panel(false)   # enemy -> top-left
+	_info_panel(true)    # player -> right side
+
+	# action log: a rounded strip anchored just above the action bar
 	var log_bg := PanelContainer.new()
 	log_bg.add_theme_stylebox_override("panel", UI.panel(Color(0,0,0,0.22), 16))
-	log_bg.position = Vector2(40, 986); log_bg.size = Vector2(W - 80, 74)
-	add_child(log_bg)
+	log_bg.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
+	log_bg.offset_left = 40; log_bg.offset_right = -40
+	log_bg.offset_top = -294; log_bg.offset_bottom = -220
+	_ui_root.add_child(log_bg)
 	log_label = UI.label("A wild %s appears!" % enemy["name"], 23, Color("e8dcff"), HORIZONTAL_ALIGNMENT_CENTER)
 	log_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	log_bg.add_child(log_label)
 
 	# action bar (container-driven, equal widths, consistent gaps)
-	var root := Control.new()
-	root.size = Vector2(W, H)
-	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(root)
 	var margin := MarginContainer.new()
 	margin.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
 	margin.offset_top = -160; margin.offset_left = 0; margin.offset_right = 0; margin.offset_bottom = -26
 	margin.add_theme_constant_override("margin_left", 40)
 	margin.add_theme_constant_override("margin_right", 40)
-	root.add_child(margin)
+	_ui_root.add_child(margin)
 	var vb := VBoxContainer.new()
 	vb.add_theme_constant_override("separation", 12)
 	margin.add_child(vb)
@@ -168,13 +174,23 @@ func _act_btn(txt: String, bg: Color, fg: Color, fs := 28) -> Button:
 	action_bar.add_child(b)
 	return b
 
-func _info_panel(pos: Vector2, c: Dictionary, is_player: bool) -> void:
+func _info_panel(is_player: bool) -> void:
+	var c: Dictionary = player if is_player else enemy
 	var rar := String(c.get("rarity", "common"))
 	var border := UI.rarity_color(rar) if rar != "common" else Color(1,1,1,0.06)
 	var panel := PanelContainer.new()
 	panel.add_theme_stylebox_override("panel", UI.panel(Color("2f2650"), 18, border, (3 if rar != "common" else 2), 6))
-	panel.position = pos; panel.size = Vector2(300, 116)
-	add_child(panel)
+	# anchored to a corner (same regions as before, but resolution-robust): enemy
+	# top-left, player on the right, so neither can drift onto its creature
+	if is_player:
+		panel.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
+		panel.offset_left = -336; panel.offset_right = -36
+		panel.offset_top = 690; panel.offset_bottom = 806
+	else:
+		panel.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
+		panel.offset_left = 36; panel.offset_right = 336
+		panel.offset_top = 96; panel.offset_bottom = 212
+	_ui_root.add_child(panel)
 	var pad := MarginContainer.new()
 	pad.add_theme_constant_override("margin_left", 16)
 	pad.add_theme_constant_override("margin_right", 16)
@@ -423,17 +439,20 @@ func _end(player_won: bool) -> void:
 	banner = UI.label("VICTORY" if player_won else "DEFEATED", 72, Color("ffe9c7") if player_won else Color("ff8090"), HORIZONTAL_ALIGNMENT_CENTER)
 	banner.add_theme_color_override("font_outline_color", Color("12121a"))
 	banner.add_theme_constant_override("outline_size", 8)
-	banner.position = Vector2(0, 470); banner.size = Vector2(W, 80)
-	add_child(banner)
+	banner.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
+	banner.offset_top = 440; banner.offset_bottom = 540
+	_ui_root.add_child(banner)
 
 	var back := Button.new()
 	back.text = "SUMMON ANOTHER"
-	back.position = Vector2(W * 0.5 - 180, 1090); back.size = Vector2(360, 80)
+	back.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
+	back.offset_left = W * 0.5 - 180; back.offset_right = -(W * 0.5 - 180)
+	back.offset_top = -186; back.offset_bottom = -106
 	UI.style_button(back, Color("6b4fd0"), Color.WHITE, 30)
 	back.pressed.connect(func():
 		if sfx: sfx.play("tap")
 		battle_over.emit(player_won))
-	add_child(back)
+	_ui_root.add_child(back)
 
 func debug_attack(use_ability: bool = false) -> void:
 	_player_act("ability" if use_ability else "attack")
