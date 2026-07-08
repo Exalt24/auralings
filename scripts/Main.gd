@@ -248,7 +248,10 @@ func _place_creature() -> void:
 		creature_view.fit_to(min(stage.size.x, stage.size.y) * 0.5 - 8.0)
 
 func _refresh_count() -> void:
-	count_label.text = "%d discovered" % collection.size()
+	if _best_streak > 0:
+		count_label.text = "%d discovered  ·  best streak %d" % [collection.size(), _best_streak]
+	else:
+		count_label.text = "%d discovered" % collection.size()
 
 func _summon(seed_val: int = -1) -> void:
 	var use_seed := seed_val if seed_val >= 0 else randi()
