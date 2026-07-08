@@ -18,6 +18,10 @@ Follow-up (Daniel still couldn't see the share toast on Firefox — investigated
 - **Achievement pops stacked** — `_check_achievements` awards multiple at once, each spun a new tween on the one shared panel → flicker / only-last / early vanish. Now queued via `_ach_queue`/`_drain_ach_queue` so they play sequentially. `Main.gd`.
 - No service worker (PWA disabled), so stale builds are plain Firefox HTTP cache of `index.pck` → users must hard-refresh (Ctrl+Shift+R) after a redeploy.
 
+Toast + collection overhaul (2026-07-08, web-researched to diminishing returns):
+- **Toast restyled** from plain floating text to a rounded high-contrast PILL: hand-drawn checkmark (`scripts/CheckIcon.gd`, no glyph font), mint border, drop shadow, CenterContainer so it auto-sizes to text (responsive, never truncates), slide-up + ease-out-back overshoot + fade, honors reduce-motion. `_toast` in `Main.gd`. Verified `tools/CaptureToast.tscn`.
+- **Collection is now a real roster (was a dead gallery).** Every bestiary card is tappable → sets that creature as your champion for the next run (`creature_chosen` signal in `Collection.gd` → `_choose_champion` in `Main.gd` → `_summon(seed)` + toast). Each creature earns a persistent LEVEL from wins (1 lvl / 3 wins, cap 5 → +4 HP & +1 ATK per level, bounded so it never trivializes the ramp — validated against roguelite meta-progression research). Wins persist across re-summon (`_add_to_collection` now carries prior `wins`). Summon card shows `Lv N`; bestiary shows a gold Lv badge + "tap to make champion" hint. All verified in `tools/test_logic.gd` TEST5 (PASS: 9 wins → Lv3 → +12/+3, wins survive re-summon).
+
 ## CURRENT STATE (2026-07-08) — research-driven overhaul, live + verified
 
 Big quality pass grounded in a web-research sweep (see `DESIGN_UPGRADE.md`), all shipped to https://auralings.vercel.app and verified live via Playwright (mobile + desktop, 0 console errors, driven through summon/bestiary/battle):

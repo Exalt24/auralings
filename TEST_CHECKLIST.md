@@ -29,6 +29,9 @@ Legend: ✅ = already auto-verified (Playwright/render/logic test, 0 console err
 ## Bestiary + persistence
 - [ ] ✅ Rarity-bordered cards, "N discovered", SORT flips Newest/Rarity, PREV/NEXT page
 - [ ] ✅ Reload page → discovered count + best streak survive (verified)
+- [ ] ⭐ **Pick your champion:** tap any bestiary card → "X is your champion" toast, back on summon that creature is loaded, GAUNTLET runs with it (new 2026-07-08)
+- [ ] ⭐ **Leveling:** run a creature a few times → it earns Lv (1 per 3 wins, cap 5); summon card shows "Lv N", bestiary shows a gold Lv badge; a leveled champ starts a bit stronger (+4 HP/+1 ATK per lvl). Logic auto-verified (TEST5)
+- [ ] ⭐ **New toast look:** SHARE / champion-pick show a rounded pill w/ checkmark that slides up (was plain text)
 
 ## The one thing only you can judge
 - [ ] ⭐ **Balance / feel:** does a run last a satisfying number of rounds, or snowball too long / wall too early? If it's off, tell Claude and the enemy-scaling / boon / upgrade numbers get tuned (`_scaled_enemy` in `scripts/Main.gd`, boon values in `_apply_boon`, upgrade steps in `UPGRADES`).
