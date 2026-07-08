@@ -449,8 +449,11 @@ func _spawn_fight() -> void:
 func _scaled_enemy(rnd: int) -> Dictionary:
 	# gradual stat ramp: round 1 is fair, later rounds pull ahead so the run has a wall
 	var c: Dictionary = CreatureGenScript.generate(randi())
-	var hp_mul := 1.0 + 0.20 * float(rnd - 1)
-	var atk_mul := 1.0 + 0.13 * float(rnd - 1)
+	# ramp tuned via Monte Carlo sim (tools/balance_sim.gd): early rounds start below
+	# parity so the first fights are winnable, then pull ahead — fresh runs median ~6,
+	# great runs 20+. Starting at full parity walled most players at streak 0-1.
+	var hp_mul := 0.42 + 0.10 * float(rnd - 1)
+	var atk_mul := 0.52 + 0.06 * float(rnd - 1)
 	c["max_hp"] = int(round(float(c["max_hp"]) * hp_mul))
 	c["hp"] = int(c["max_hp"])
 	c["atk"] = int(round(float(c["atk"]) * atk_mul))
