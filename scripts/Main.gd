@@ -17,6 +17,18 @@ const CollectionScript = preload("res://scripts/Collection.gd")
 const SfxScript = preload("res://scripts/Sfx.gd")
 const Settings = preload("res://scripts/Settings.gd")
 const SettingsMenuScript = preload("res://scripts/SettingsMenu.gd")
+const BoonChoiceScript = preload("res://scripts/BoonChoice.gd")
+const RunOverScript = preload("res://scripts/RunOver.gd")
+const META_PATH := "user://meta.json"
+
+# gauntlet boon pool (run-altering choice; 3 offered each win)
+const BOONS := [
+	{"id": "heal", "name": "Second Wind", "desc": "Restore 55% of max HP"},
+	{"id": "fortify", "name": "Fortify", "desc": "+30 max HP, and heal 30"},
+	{"id": "power", "name": "Power Up", "desc": "+6 ATK"},
+	{"id": "focus", "name": "Battle Focus", "desc": "Full heal, +2 ATK"},
+	{"id": "swift", "name": "Swift", "desc": "+4 SPD, +3 ATK"},
+]
 
 const W := 720
 const H := 1280
@@ -46,13 +58,22 @@ var current_seed := 0
 var current_creature: Dictionary = {}
 var battle = null
 var collection_view = null
+var boon_view = null
+var run_over_view = null
 var collection: Array = []
+var _champion: Dictionary = {}
+var _current_enemy: Dictionary = {}
+var _round := 1
+var _streak := 0
+var _best_streak := 0
+var _run_set_best := false
 var _summons_done := 0
 var bg_top := Color("2a2140")
 var bg_bot := Color("453763")
 
 func _ready() -> void:
 	_load_collection()
+	_load_meta()
 	sfx = SfxScript.new()
 	add_child(sfx)
 	_build_ui()
@@ -192,7 +213,7 @@ func _build_ui() -> void:
 	battle_btn.custom_minimum_size = Vector2(0, 88)
 	battle_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	UI.style_button(battle_btn, Color("2f8f6b"), Color.WHITE, 34)
-	battle_btn.pressed.connect(_enter_battle)
+	battle_btn.pressed.connect(_start_run)
 	actions.add_child(battle_btn)
 
 	# --- bestiary (full width) ---
@@ -299,24 +320,111 @@ func _on_identity_ready(seed_val: int, identity: Dictionary) -> void:
 		ability_label.text = "• %s: %s" % [abil_name, abil_desc]
 		current_creature["ability_name"] = abil_name
 
-func _enter_battle() -> void:
+# --- The Gauntlet: a roguelite run ---
+func _start_run() -> void:
 	if current_creature.is_empty() or battle != null:
 		return
 	if sfx: sfx.play("tap")
 	if settings_menu: settings_menu.collapse()
+	_champion = current_creature.duplicate(true)
+	_champion["hp"] = int(_champion["max_hp"])
+	_round = 1
+	_streak = 0
+	_run_set_best = false
 	summon_layer.visible = false
+	_spawn_fight()
+
+func _spawn_fight() -> void:
+	_current_enemy = _scaled_enemy(_round)
 	battle = BattleScript.new()
 	battle.sfx = sfx
-	battle.setup(current_creature)
-	battle.battle_over.connect(_on_battle_over)
+	battle.gauntlet_setup(_champion, _current_enemy, _round, _streak)
+	battle.round_over.connect(_on_round_over)
 	add_child(battle)
 
-func _on_battle_over(_player_won: bool) -> void:
+func _scaled_enemy(rnd: int) -> Dictionary:
+	# gradual stat ramp: round 1 is fair, later rounds pull ahead so the run has a wall
+	var c: Dictionary = CreatureGenScript.generate(randi())
+	var hp_mul := 1.0 + 0.20 * float(rnd - 1)
+	var atk_mul := 1.0 + 0.13 * float(rnd - 1)
+	c["max_hp"] = int(round(float(c["max_hp"]) * hp_mul))
+	c["hp"] = int(c["max_hp"])
+	c["atk"] = int(round(float(c["atk"]) * atk_mul))
+	return c
+
+func _on_round_over(player_won: bool, champ_hp: int) -> void:
 	if battle != null:
 		battle.queue_free()
 		battle = null
+	if player_won:
+		_streak += 1
+		_champion["hp"] = champ_hp
+		_discover(_current_enemy)
+		if _streak > _best_streak:
+			_best_streak = _streak
+			_run_set_best = true
+			_save_meta()
+		_show_boon()
+	else:
+		_show_run_over()
+
+func _show_boon() -> void:
+	var pool := BOONS.duplicate()
+	pool.shuffle()
+	boon_view = BoonChoiceScript.new()
+	boon_view.sfx = sfx
+	boon_view.setup(_champion, pool.slice(0, 3), _streak)
+	boon_view.picked.connect(_on_boon_picked)
+	add_child(boon_view)
+
+func _on_boon_picked(id: String) -> void:
+	if boon_view != null:
+		boon_view.queue_free()
+		boon_view = null
+	_apply_boon(id)
+	_round += 1
+	_spawn_fight()
+
+func _apply_boon(id: String) -> void:
+	var mx := int(_champion["max_hp"])
+	match id:
+		"heal": _champion["hp"] = min(mx, int(_champion["hp"]) + int(mx * 0.55))
+		"fortify":
+			_champion["max_hp"] = mx + 30
+			_champion["hp"] = min(mx + 30, int(_champion["hp"]) + 30)
+		"power": _champion["atk"] = int(_champion["atk"]) + 6
+		"focus":
+			_champion["hp"] = int(_champion["max_hp"])
+			_champion["atk"] = int(_champion["atk"]) + 2
+		"swift":
+			_champion["spd"] = int(_champion["spd"]) + 4
+			_champion["atk"] = int(_champion["atk"]) + 3
+
+func _show_run_over() -> void:
+	run_over_view = RunOverScript.new()
+	run_over_view.sfx = sfx
+	run_over_view.setup(_champion, _streak, _best_streak, _run_set_best)
+	run_over_view.share_pressed.connect(_share_streak)
+	run_over_view.continue_pressed.connect(_end_run)
+	add_child(run_over_view)
+
+func _end_run() -> void:
+	if run_over_view != null:
+		run_over_view.queue_free()
+		run_over_view = null
 	summon_layer.visible = true
 	_summon()
+
+func _discover(c: Dictionary) -> void:
+	var sv := int(c.get("seed", 0))
+	for e in collection:
+		if int(e.get("seed", -1)) == sv:
+			return
+	collection.push_front({"seed": sv, "name": String(c.get("name", "?")), "rarity": String(c.get("rarity", "common"))})
+	if collection.size() > 300:
+		collection.resize(300)
+	_save_collection()
+	_refresh_count()
 
 func _open_collection() -> void:
 	if collection_view != null:
@@ -371,6 +479,26 @@ func _save_collection() -> void:
 	if f != null:
 		f.store_string(JSON.stringify(collection))
 
+func _load_meta() -> void:
+	if not FileAccess.file_exists(META_PATH):
+		return
+	var f := FileAccess.open(META_PATH, FileAccess.READ)
+	if f == null:
+		return
+	var data = JSON.parse_string(f.get_as_text())
+	if typeof(data) == TYPE_DICTIONARY and data.has("best_streak"):
+		_best_streak = int(data["best_streak"])
+
+func _save_meta() -> void:
+	var f := FileAccess.open(META_PATH, FileAccess.WRITE)
+	if f != null:
+		f.store_string(JSON.stringify({"best_streak": _best_streak}))
+
+func _share_streak() -> void:
+	if sfx: sfx.play("tap")
+	var line := "I hit a %d-win streak with %s in Auralings! Beat it:" % [_streak, _champion.get("name", "my Auraling")]
+	_share_line(line, _site_link(-1))
+
 func _shared_seed() -> int:
 	if not OS.has_feature("web"):
 		return -1
@@ -389,23 +517,29 @@ func _share_seed() -> void:
 		line = "I summoned %s, a %s %s Auraling! Summon yours:" % [nm, rar.to_upper(), elem]
 	else:
 		line = "I summoned %s the %s Auraling! Summon yours:" % [nm, elem]
-	var link := "seed %d" % current_seed
+	_share_line(line, _site_link(current_seed))
+
+func _site_link(seed_val: int) -> String:
+	var link := ("seed %d" % seed_val) if seed_val >= 0 else "auralings.vercel.app"
 	if OS.has_feature("web"):
 		var origin = JavaScriptBridge.eval("window.location.origin + window.location.pathname", true)
 		if typeof(origin) == TYPE_STRING:
-			link = String(origin) + "?seed=" + str(current_seed)
+			link = String(origin) + ("?seed=" + str(seed_val) if seed_val >= 0 else "")
+	return link
+
+# Prefer the native share sheet (Web Share API); fall back to clipboard copy
+# (navigator.clipboard, then a textarea/execCommand fallback). All inside the button
+# gesture browsers require.
+func _share_line(line: String, link: String) -> void:
 	var full := line + "\n" + link
 	if OS.has_feature("web"):
-		# Prefer the native share sheet (Web Share API, great on mobile: opens the OS
-		# "share to..." menu). Fall back to clipboard copy (navigator.clipboard, then a
-		# textarea/execCommand fallback). All inside the button-press gesture browsers require.
 		var has_share = JavaScriptBridge.eval("(typeof navigator!=='undefined' && typeof navigator.share==='function')", true)
 		var js := "(function(txt,url){var full=txt+'\\n'+url;function copy(){try{if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(full);return;}}catch(e){}var a=document.createElement('textarea');a.value=full;a.style.position='fixed';a.style.opacity='0';document.body.appendChild(a);a.focus();a.select();try{document.execCommand('copy');}catch(_){}document.body.removeChild(a);}if(navigator.share){navigator.share({title:'Auralings',text:txt,url:url}).catch(function(){copy();});return;}copy();})(%s,%s);" % [JSON.stringify(line), JSON.stringify(link)]
 		JavaScriptBridge.eval(js)
-		_toast("opening share..." if has_share == true else "copied! share your Auraling")
+		_toast("opening share..." if has_share == true else "copied to clipboard!")
 	else:
 		DisplayServer.clipboard_set(full)
-		_toast("copied! share your Auraling")
+		_toast("copied to clipboard!")
 
 func _toast(msg: String) -> void:
 	toast_label.text = msg
