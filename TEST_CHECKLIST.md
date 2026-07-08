@@ -17,7 +17,9 @@ Legend: ✅ = already auto-verified (Playwright/render/logic test, 0 console err
 - [ ] ATTACK / ability / CHARGE work; "Super effective!" / "Resisted" show; BURN can proc; ⭐ SPEED: 1x/3x toggle speeds the battle up (renamed from TURBO 2026-07-08)
 - [ ] ✅ Win → CHOOSE A BOON → pick one → ROUND 2 · STREAK 1, HP carried over
 - [ ] ✅ Boons apply correctly (heal / fortify / power / focus / swift, all logic-tested)
+- [ ] ⭐ Battle cards show ATK + SPD; a "+ATK" boon or a leveled champ visibly bumps the gold ATK number (new 2026-07-08)
 - [ ] Climb a few rounds → lose → RUN OVER shows streak, best, "+N essence"
+- [ ] ⭐ Run-over shows "underdog bonus xN" for lower-rarity champs (common 1.5x down to legendary 1.0x essence); a common run pays extra essence (new 2026-07-08)
 - [ ] ✅ NEW CHAMPION returns cleanly to summon
 
 ## Meta (achievements + upgrades)
