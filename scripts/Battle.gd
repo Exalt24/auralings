@@ -183,6 +183,9 @@ func _build() -> void:
 	vb.add_child(turbo_btn)
 
 	_refresh_buttons()
+	# reflect starting HP immediately (gauntlet rounds carry partial HP into the fight)
+	_set_bar(p_fill, p_hp_label, player_hp, int(player["max_hp"]), _p_bar_w)
+	_set_bar(e_fill, e_hp_label, enemy_hp, int(enemy["max_hp"]), _e_bar_w)
 
 func _act_btn(txt: String, bg: Color, fg: Color, fs := 28) -> Button:
 	var b := Button.new()
@@ -231,17 +234,22 @@ func _info_panel(is_player: bool) -> void:
 
 	vb.add_child(UI.label(String(c["element"]).capitalize(), 16, UI.TEXT_DIM))
 
-	# hp bar
+	# hp bar — anchor-driven so it always fills the card width exactly (responsive) and
+	# clips, instead of a hardcoded 268px width that overflowed the right-anchored card
 	var bar_holder := Control.new()
 	bar_holder.custom_minimum_size = Vector2(0, 24)
+	bar_holder.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	bar_holder.clip_contents = true
 	vb.add_child(bar_holder)
 	var back := ColorRect.new()
 	back.color = Color(0, 0, 0, 0.4)
-	back.position = Vector2(0, 0); back.size = Vector2(268, 24)
+	back.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	bar_holder.add_child(back)
 	var fill := ColorRect.new()
 	fill.color = Pal.varied(c["element"], c.get("hue_shift", 0.0), c.get("sat_mul", 1.0), c.get("val_mul", 1.0))["body"]
-	fill.position = Vector2(0, 0); fill.size = Vector2(268, 24)
+	# left-anchored, full height; width = anchor_right fraction of the holder (1.0 = full)
+	fill.anchor_left = 0.0; fill.anchor_top = 0.0; fill.anchor_bottom = 1.0; fill.anchor_right = 1.0
+	fill.offset_left = 0; fill.offset_top = 0; fill.offset_bottom = 0; fill.offset_right = 0
 	bar_holder.add_child(fill)
 	var hp_l := UI.label("%d / %d" % [int(c["max_hp"]), int(c["max_hp"])], 17, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER)
 	# light text + dark outline stays readable whether it sits on the fill or the empty track
@@ -412,10 +420,11 @@ func _type_mult(atk_elem: String, def_elem: String) -> float:
 		return 0.66
 	return 1.0
 
-func _set_bar(fill: ColorRect, hp_l: Label, hp: int, max_hp: int, full_w: float) -> void:
+func _set_bar(fill: ColorRect, hp_l: Label, hp: int, max_hp: int, _full_w: float) -> void:
+	# fill width = fraction of the holder via anchor_right (responsive, never overflows)
 	var frac := clampf(float(hp) / float(max_hp), 0.0, 1.0)
 	var tw := create_tween()
-	tw.tween_property(fill, "size:x", full_w * frac, _t(0.3)).set_trans(Tween.TRANS_QUAD)
+	tw.tween_property(fill, "anchor_right", frac, _t(0.3)).set_trans(Tween.TRANS_QUAD)
 	hp_l.text = "%d / %d" % [hp, max_hp]
 	if frac < 0.3:
 		fill.color = Color("ff5d6c")
