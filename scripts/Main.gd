@@ -85,6 +85,9 @@ const UPGRADES := [
 ]
 var _ach_layer: CanvasLayer
 var _ach_panel: PanelContainer
+var _ach_queue: Array = []
+var _ach_busy := false
+var _share_cb = null
 var _ach_label: Label
 var _ach_view = null
 var _summons_done := 0
@@ -614,9 +617,21 @@ func _check_achievements() -> void:
 			_ach_toast(AchievementsScript.name_of(id))
 
 func _ach_toast(nm: String) -> void:
-	# shown on a CanvasLayer so it appears over ANY screen (summon/battle/boon/run-over)
+	# queue pops so multiple achievements earned at once show one-after-another instead
+	# of stacking tweens on the shared panel (which flickered / dropped all but the last)
 	if _ach_panel == null:
 		return
+	_ach_queue.append(nm)
+	if not _ach_busy:
+		_drain_ach_queue()
+
+func _drain_ach_queue() -> void:
+	if _ach_queue.is_empty():
+		_ach_busy = false
+		return
+	_ach_busy = true
+	var nm: String = _ach_queue.pop_front()
+	# shown on a CanvasLayer so it appears over ANY screen (summon/battle/boon/run-over)
 	if sfx: sfx.play("rare")
 	_ach_label.text = "Achievement:  %s" % nm
 	_ach_panel.modulate.a = 0.0
@@ -625,7 +640,9 @@ func _ach_toast(nm: String) -> void:
 	tw.tween_property(_ach_panel, "modulate:a", 1.0, 0.25)
 	tw.tween_interval(1.9)
 	tw.tween_property(_ach_panel, "modulate:a", 0.0, 0.5)
-	tw.tween_callback(func(): _ach_panel.visible = false)
+	tw.tween_callback(func():
+		_ach_panel.visible = false
+		_drain_ach_queue())
 
 func _share_streak() -> void:
 	if sfx: sfx.play("tap")
@@ -666,10 +683,18 @@ func _site_link(seed_val: int) -> String:
 func _share_line(line: String, link: String) -> void:
 	var full := line + "\n" + link
 	if OS.has_feature("web"):
-		var has_share = JavaScriptBridge.eval("(typeof navigator!=='undefined' && typeof navigator.share==='function')", true)
-		var js := "(function(txt,url){var full=txt+'\\n'+url;function copy(){try{if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(full);return;}}catch(e){}var a=document.createElement('textarea');a.value=full;a.style.position='fixed';a.style.opacity='0';document.body.appendChild(a);a.focus();a.select();try{document.execCommand('copy');}catch(_){}document.body.removeChild(a);}if(navigator.share){navigator.share({title:'Auralings',text:txt,url:url}).catch(function(){copy();});return;}copy();})(%s,%s);" % [JSON.stringify(line), JSON.stringify(link)]
+		# The toast fires from a JS CALLBACK once the share/copy actually settles, not
+		# instantly. On mobile the native share sheet covers the screen, so an instant
+		# toast would fade before the sheet closes and you'd never see it. Now it shows
+		# after. On desktop (no navigator.share, e.g. Firefox) it copies and toasts.
+		if _share_cb == null:
+			_share_cb = JavaScriptBridge.create_callback(func(args):
+				var kind := (String(args[0]) if args.size() > 0 else "copied")
+				_toast("shared!" if kind == "shared" else "copied to clipboard!"))
+		var win = JavaScriptBridge.get_interface("window")
+		win.godotOnShare = _share_cb
+		var js := "(function(txt,url){var full=txt+'\\n'+url;function cb(k){try{window.godotOnShare(k);}catch(e){}}function fb(){var a=document.createElement('textarea');a.value=full;a.style.position='fixed';a.style.opacity='0';document.body.appendChild(a);a.focus();a.select();try{document.execCommand('copy');}catch(_){}document.body.removeChild(a);cb('copied');}function copy(){try{if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(full).then(function(){cb('copied');},fb);return;}}catch(e){}fb();}if(navigator.share){navigator.share({title:'Auralings',text:txt,url:url}).then(function(){cb('shared');},copy);return;}copy();})(%s,%s);" % [JSON.stringify(line), JSON.stringify(link)]
 		JavaScriptBridge.eval(js)
-		_toast("opening share..." if has_share == true else "copied to clipboard!")
 	else:
 		DisplayServer.clipboard_set(full)
 		_toast("copied to clipboard!")
