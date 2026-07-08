@@ -13,6 +13,11 @@ Three UX fixes from Daniel's phone playtest, all shipped + render-verified:
 - **Run-over button spacing tight:** bumped the VBox separation 14->24 so the primary NEW CHAMPION button breathes below the SHARE/UPGRADES row. `RunOver.gd`.
 Verified via `tools/CaptureRun.tscn` + `CaptureBattle.tscn` renders (`_shots/runover.png`, `battle_0.png`).
 
+Follow-up (Daniel still couldn't see the share toast on Firefox — investigated properly, `tools/CaptureToast.tscn` renders BOTH toasts over run-over and confirms rendering is FINE, so the bug was behavioral + browser cache):
+- **Share toast fired instantly** so the mobile native share sheet covered it and it faded before the sheet closed. Now fires from a `JavaScriptBridge.create_callback` once the share/clipboard settles (`window.godotOnShare`), so it shows after the sheet closes on mobile and immediately on desktop (Firefox has no `navigator.share` → clipboard path). `_share_line` in `Main.gd`.
+- **Achievement pops stacked** — `_check_achievements` awards multiple at once, each spun a new tween on the one shared panel → flicker / only-last / early vanish. Now queued via `_ach_queue`/`_drain_ach_queue` so they play sequentially. `Main.gd`.
+- No service worker (PWA disabled), so stale builds are plain Firefox HTTP cache of `index.pck` → users must hard-refresh (Ctrl+Shift+R) after a redeploy.
+
 ## CURRENT STATE (2026-07-08) — research-driven overhaul, live + verified
 
 Big quality pass grounded in a web-research sweep (see `DESIGN_UPGRADE.md`), all shipped to https://auralings.vercel.app and verified live via Playwright (mobile + desktop, 0 console errors, driven through summon/bestiary/battle):
