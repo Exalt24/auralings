@@ -89,6 +89,15 @@ func _ready() -> void:
 	print("TEST6 mult common=%.2f(want1.5) legendary=%.2f(want1.0)  streak10 -> common %d(want15) leg %d(want10)" % [em_c, em_l, e_common, e_leg])
 	print("TEST6 %s" % ("PASS" if em_c == 1.5 and em_l == 1.0 and e_common == 15 and e_leg == 10 else "FAIL"))
 
+	# ---- (7) every creature has a valid role + trait, stats stay positive ----
+	var ok7 := true
+	for s in [111, 222, 333, 444, 555, 666, 777, 888, 999, 1010]:
+		var cc: Dictionary = CreatureGenScript.generate(s)
+		if not (String(cc.get("role", "")) in ["Warden", "Berserker", "Skirmisher", "Adept"]): ok7 = false
+		if String(cc.get("trait", "")) == "" or String(cc.get("trait_desc", "")) == "": ok7 = false
+		if int(cc.get("hp", 0)) <= 0 or int(cc.get("atk", 0)) <= 0 or int(cc.get("spd", 0)) <= 0: ok7 = false
+	print("TEST7 roles/traits valid + stats positive across 10 seeds: %s" % ("PASS" if ok7 else "FAIL"))
+
 	main.queue_free()
 	for i in 3: await get_tree().process_frame
 
