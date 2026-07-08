@@ -24,7 +24,8 @@ func _ready() -> void:
 	for i in 4: await get_tree().process_frame
 
 	var ro = RunOverScript.new()
-	ro.setup(champ, 7, 7, true)
+	ro.setup(champ, 7, 7, true, 11)
+	ro.essence_mult = 1.5
 	add_child(ro)
 	for i in 20: await get_tree().process_frame
 	await RenderingServer.frame_post_draw

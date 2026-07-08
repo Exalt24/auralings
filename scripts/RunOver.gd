@@ -17,6 +17,7 @@ var streak := 0
 var best := 0
 var is_new_best := false
 var essence_earned := 0
+var essence_mult := 1.0
 var sfx = null
 
 func setup(champ: Dictionary, streak_val: int, best_val: int, new_best: bool, essence: int = 0) -> void:
@@ -61,6 +62,12 @@ func _build() -> void:
 	var best_txt := ("NEW BEST!" if is_new_best else "best  %d" % best)
 	stats.add_child(UI.label(best_txt, 26, UI.MINT if is_new_best else UI.TEXT_DIM, HORIZONTAL_ALIGNMENT_CENTER))
 	stats.add_child(UI.label("+%d essence" % essence_earned, 22, UI.GOLD, HORIZONTAL_ALIGNMENT_CENTER))
+	if essence_mult > 1.0:
+		var mtxt := String.num(essence_mult, 2)
+		while mtxt.ends_with("0"):
+			mtxt = mtxt.left(mtxt.length() - 1)
+		mtxt = mtxt.trim_suffix(".")
+		stats.add_child(UI.label("underdog bonus  x%s" % mtxt, 18, UI.MINT, HORIZONTAL_ALIGNMENT_CENTER))
 
 	# buttons
 	var row := VBoxContainer.new()
