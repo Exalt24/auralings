@@ -202,7 +202,12 @@ func _render_page() -> void:
 		var nm := UI.label(String(e.get("name", c["name"])), 21, rcol if rar != "common" else UI.TEXT, HORIZONTAL_ALIGNMENT_CENTER)
 		nm.position = Vector2(rx, ry + cell_h - 66); nm.size = Vector2(cell_w, 26)
 		_grid_root.add_child(nm)
-		var el := UI.label(String(c["element"]).capitalize() + ("  " + rar if rar != "common" else ""), 15, UI.TEXT_DIM, HORIZONTAL_ALIGNMENT_CENTER)
+		# element + role (rarity is already shown by the card border + name color) so you
+		# can pick your champion by playstyle, not just looks
+		var sub := String(c["element"]).capitalize()
+		if c.has("role"):
+			sub += "  ·  " + String(c["role"])
+		var el := UI.label(sub, 15, UI.TEXT_DIM, HORIZONTAL_ALIGNMENT_CENTER)
 		el.position = Vector2(rx, ry + cell_h - 38); el.size = Vector2(cell_w, 22)
 		_grid_root.add_child(el)
 
