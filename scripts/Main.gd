@@ -367,6 +367,9 @@ func _summon(seed_val: int = -1) -> void:
 	_set_rarity_pill(rar)
 	sub_label.text = "%s  ·  %s" % [String(c["element"]).capitalize(), c["archetype"]]
 	stat_label.text = "HP %d    ATK %d    SPD %d" % [c["hp"], c["atk"], c["spd"]]
+	var lv := _level_from_wins(_wins_for(current_seed))
+	if lv > 0:
+		stat_label.text += "    Lv %d" % lv
 	ability_label.text = "• " + c["ability_name"]
 	if llm.has_key():
 		lore_label.text = "summoning its story..."
@@ -412,9 +415,10 @@ func _start_run() -> void:
 	if sfx: sfx.play("tap")
 	if settings_menu: settings_menu.collapse()
 	_champion = current_creature.duplicate(true)
-	# apply bounded meta upgrades to the champion for this run
-	_champion["max_hp"] = int(_champion["max_hp"]) + 8 * int(_upgrades["vigor"])
-	_champion["atk"] = int(_champion["atk"]) + 2 * int(_upgrades["might"])
+	# apply bounded meta upgrades + this champion's earned level (from wins) for the run
+	var lvl := _level_from_wins(_wins_for(current_seed))
+	_champion["max_hp"] = int(_champion["max_hp"]) + 8 * int(_upgrades["vigor"]) + 4 * lvl
+	_champion["atk"] = int(_champion["atk"]) + 2 * int(_upgrades["might"]) + 1 * lvl
 	_champion["hp"] = int(_champion["max_hp"])
 	_boon_count = 3 + (1 if int(_upgrades["insight"]) > 0 else 0)
 	_round = 1
@@ -448,6 +452,7 @@ func _on_round_over(player_won: bool, champ_hp: int) -> void:
 	if player_won:
 		_streak += 1
 		_champion["hp"] = champ_hp
+		_add_win(int(_champion.get("seed", current_seed)))
 		_discover(_current_enemy)
 		if _streak > _best_streak:
 			_best_streak = _streak
@@ -558,7 +563,34 @@ func _open_collection() -> void:
 	collection_view.sfx = sfx
 	collection_view.setup(collection)
 	collection_view.closed.connect(_on_collection_closed)
+	collection_view.creature_chosen.connect(_choose_champion)
 	add_child(collection_view)
+
+# picking a creature in the bestiary makes it your champion for the next run — this is
+# what gives the collection a point (it's your roster, not a dead gallery)
+func _choose_champion(entry: Dictionary) -> void:
+	var sv := int(entry.get("seed", -1))
+	if sv < 0:
+		return
+	_on_collection_closed()
+	_summon(sv)
+	_toast("%s is your champion" % String(entry.get("name", "this one")))
+
+func _wins_for(seed_val: int) -> int:
+	for e in collection:
+		if int(e.get("seed", -1)) == seed_val:
+			return int(e.get("wins", 0))
+	return 0
+
+func _level_from_wins(wins: int) -> int:
+	return mini(5, wins / 3)  # +1 level per 3 wins, capped at 5 so it can't break balance
+
+func _add_win(seed_val: int) -> void:
+	for e in collection:
+		if int(e.get("seed", -1)) == seed_val:
+			e["wins"] = int(e.get("wins", 0)) + 1
+			_save_collection()
+			return
 
 func _on_collection_closed() -> void:
 	if collection_view != null:
@@ -567,14 +599,16 @@ func _on_collection_closed() -> void:
 	summon_layer.visible = true
 
 func _add_to_collection(seed_val: int, nm: String) -> void:
+	var prior_wins := 0
 	for i in collection.size():
 		if int(collection[i].get("seed", -1)) == seed_val:
+			prior_wins = int(collection[i].get("wins", 0))  # keep earned level on re-summon
 			collection.remove_at(i)
 			break
 	var rar := "common"
 	if not current_creature.is_empty():
 		rar = String(current_creature.get("rarity", "common"))
-	collection.push_front({"seed": seed_val, "name": nm, "rarity": rar})
+	collection.push_front({"seed": seed_val, "name": nm, "rarity": rar, "wins": prior_wins})
 	if collection.size() > 300:
 		collection.resize(300)
 	_save_collection()

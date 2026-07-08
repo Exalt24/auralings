@@ -58,6 +58,29 @@ func _ready() -> void:
 	for i in 3: await get_tree().process_frame
 	print("TEST3 end_run: summon visible=%s (want true)  %s" % [str(main.summon_layer.visible), "PASS" if main.summon_layer.visible else "FAIL"])
 
+	# ---- (5) champion leveling from wins (persist + apply) ----
+	var seed5 := 55501
+	main.collection = []
+	main.current_creature = CreatureGenScript.generate(seed5)
+	main.current_seed = seed5
+	main._add_to_collection(seed5, "Testo")
+	for i in 9: main._add_win(seed5)
+	var w5: int = main._wins_for(seed5)
+	var lv5: int = main._level_from_wins(w5)
+	main._add_to_collection(seed5, "Testo")  # re-summon: wins must survive
+	var w5_after: int = main._wins_for(seed5)
+	main._upgrades = {"vigor": 0, "might": 0, "insight": 0}
+	var base_hp5 := int(main.current_creature["max_hp"])
+	var base_atk5 := int(main.current_creature["atk"])
+	main._start_run()
+	for i in 6: await get_tree().process_frame
+	var rhp5 := int(main.battle.player["max_hp"])
+	var ratk5 := int(main.battle.player["atk"])
+	print("TEST5 wins=%d(want9) lv=%d(want3) wins_after_resummon=%d(want9) hp+%d(want12) atk+%d(want3)" % [w5, lv5, w5_after, rhp5 - base_hp5, ratk5 - base_atk5])
+	print("TEST5 %s" % ("PASS" if w5 == 9 and lv5 == 3 and w5_after == 9 and rhp5 - base_hp5 == 12 and ratk5 - base_atk5 == 3 else "FAIL"))
+	if main.battle: main.battle.queue_free(); main.battle = null
+	for i in 3: await get_tree().process_frame
+
 	main.queue_free()
 	for i in 3: await get_tree().process_frame
 
