@@ -6,6 +6,7 @@ extends Node2D
 # completion header — the collection-completion hook that drives creature-collectors.
 
 signal closed
+signal creature_chosen(entry)
 
 const CreatureViewScript = preload("res://scripts/CreatureView.gd")
 const CreatureGenScript = preload("res://scripts/CreatureGen.gd")
@@ -59,6 +60,7 @@ func _build_chrome() -> void:
 	add_child(head)
 	head.add_child(UI.label("BESTIARY", 42, UI.GOLD, HORIZONTAL_ALIGNMENT_CENTER))
 	head.add_child(UI.label("%d discovered" % entries.size(), 22, UI.MINT, HORIZONTAL_ALIGNMENT_CENTER))
+	head.add_child(UI.label("tap a creature to make it your champion", 16, UI.TEXT_DIM, HORIZONTAL_ALIGNMENT_CENTER))
 	var legend := HBoxContainer.new()
 	legend.add_theme_constant_override("separation", 18)
 	legend.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -203,3 +205,26 @@ func _render_page() -> void:
 		var el := UI.label(String(c["element"]).capitalize() + ("  " + rar if rar != "common" else ""), 15, UI.TEXT_DIM, HORIZONTAL_ALIGNMENT_CENTER)
 		el.position = Vector2(rx, ry + cell_h - 38); el.size = Vector2(cell_w, 22)
 		_grid_root.add_child(el)
+
+		# earned level badge (from wins) so investing in a creature reads on its card
+		var lv := mini(5, int(e.get("wins", 0)) / 3)
+		if lv > 0:
+			var lvl_lbl := UI.label("Lv %d" % lv, 15, UI.GOLD)
+			lvl_lbl.position = Vector2(rx + 10, ry + 8); lvl_lbl.size = Vector2(cell_w - 20, 20)
+			_grid_root.add_child(lvl_lbl)
+
+		# transparent hit button over the whole card → choose this creature as champion
+		var hit := Button.new()
+		hit.position = Vector2(rx, ry); hit.size = Vector2(cell_w, cell_h)
+		hit.focus_mode = Control.FOCUS_NONE
+		hit.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+		hit.add_theme_stylebox_override("normal", StyleBoxEmpty.new())
+		hit.add_theme_stylebox_override("pressed", StyleBoxEmpty.new())
+		var hov := StyleBoxFlat.new()
+		hov.bg_color = Color(1, 1, 1, 0.10); hov.set_corner_radius_all(18)
+		hit.add_theme_stylebox_override("hover", hov)
+		var ent := e
+		hit.pressed.connect(func():
+			if sfx: sfx.play("tap")
+			creature_chosen.emit(ent))
+		_grid_root.add_child(hit)
