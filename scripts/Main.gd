@@ -41,6 +41,7 @@ var share_btn: Button
 var bestiary_btn: Button
 var llm
 var sfx
+var settings_menu
 var current_seed := 0
 var current_creature: Dictionary = {}
 var battle = null
@@ -203,7 +204,7 @@ func _build_ui() -> void:
 	col.add_child(bestiary_btn)
 
 	# gear settings menu, added LAST so it sits on top of the layout and is clickable
-	var settings_menu := SettingsMenuScript.new()
+	settings_menu = SettingsMenuScript.new()
 	settings_menu.sfx = sfx
 	root.add_child(settings_menu)
 
@@ -302,6 +303,7 @@ func _enter_battle() -> void:
 	if current_creature.is_empty() or battle != null:
 		return
 	if sfx: sfx.play("tap")
+	if settings_menu: settings_menu.collapse()
 	summon_layer.visible = false
 	battle = BattleScript.new()
 	battle.sfx = sfx
@@ -320,6 +322,7 @@ func _open_collection() -> void:
 	if collection_view != null:
 		return
 	if sfx: sfx.play("tap")
+	if settings_menu: settings_menu.collapse()
 	summon_layer.visible = false
 	collection_view = CollectionScript.new()
 	collection_view.sfx = sfx

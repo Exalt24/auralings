@@ -97,6 +97,13 @@ func _row(label_text: String, start_on: bool, apply: Callable) -> HBoxContainer:
 	row.add_child(t)
 	return row
 
+func collapse() -> void:
+	# force the panel shut (called when leaving the summon screen so we never return
+	# from battle/bestiary to a stray-open settings panel)
+	_expanded = false
+	_panel.visible = false
+	_panel.modulate.a = 0.0
+
 func _toggle() -> void:
 	if sfx: sfx.play("tap")
 	_expanded = not _expanded
