@@ -25,7 +25,7 @@ static func name_of(id: String) -> String:
 # filters out the ones already unlocked and toasts the newly-earned ones)
 static func earned(streak: int, best_streak: int, discovered: int, last_rarity: String) -> Array:
 	var out := []
-	var top := max(streak, best_streak)
+	var top: int = max(streak, best_streak)
 	if best_streak >= 1 or streak >= 1: out.append("first_win")
 	if top >= 3: out.append("streak_3")
 	if top >= 7: out.append("streak_7")
