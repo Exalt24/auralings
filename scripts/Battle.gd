@@ -7,6 +7,7 @@ extends Node2D
 # bars, SFX. UI is a proper Control layout (UI kit), not hand-placed ColorRects.
 
 signal battle_over(player_won: bool)
+signal round_over(player_won: bool, champion_hp: int)
 
 const CreatureViewScript = preload("res://scripts/CreatureView.gd")
 const CreatureGenScript = preload("res://scripts/CreatureGen.gd")
@@ -39,6 +40,8 @@ var enemy_charged := false
 var busy := false
 var finished := false
 var turbo := false
+var round_num := 1
+var streak := 0
 
 var world: Node2D
 var p_view
@@ -62,10 +65,20 @@ var _e_bar_w := 268.0
 var _shake := 0.0
 
 func setup(player_creature: Dictionary) -> void:
+	# standalone one-off (used by the capture tool): full HP, fresh wild enemy
 	player = player_creature.duplicate(true)
 	enemy = CreatureGenScript.generate(randi())
 	player_hp = int(player["max_hp"])
 	enemy_hp = int(enemy["max_hp"])
+
+func gauntlet_setup(champion: Dictionary, foe: Dictionary, round_val: int, streak_val: int) -> void:
+	# gauntlet round: champion carries its current HP; the foe is pre-scaled
+	player = champion.duplicate(true)
+	enemy = foe
+	player_hp = clampi(int(champion.get("hp", champion["max_hp"])), 1, int(player["max_hp"]))
+	enemy_hp = int(enemy["max_hp"])
+	round_num = round_val
+	streak = streak_val
 
 func _ready() -> void:
 	world = Node2D.new()
@@ -118,6 +131,12 @@ func _build() -> void:
 	# info panels pinned to opposite corners (anchored, so they never drift onto a creature)
 	_info_panel(false)   # enemy -> top-left
 	_info_panel(true)    # player -> right side
+
+	# gauntlet round/streak banner (centered, between the two combatants)
+	var rlabel := UI.label("ROUND %d   ·   STREAK %d" % [round_num, streak], 22, UI.GOLD, HORIZONTAL_ALIGNMENT_CENTER)
+	rlabel.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
+	rlabel.offset_top = 590; rlabel.offset_bottom = 622
+	_ui_root.add_child(rlabel)
 
 	# action log: a rounded strip anchored just above the action bar
 	var log_bg := PanelContainer.new()
@@ -443,16 +462,10 @@ func _end(player_won: bool) -> void:
 	banner.offset_top = 440; banner.offset_bottom = 540
 	_ui_root.add_child(banner)
 
-	var back := Button.new()
-	back.text = "SUMMON ANOTHER"
-	back.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
-	back.offset_left = W * 0.5 - 180; back.offset_right = -(W * 0.5 - 180)
-	back.offset_top = -186; back.offset_bottom = -106
-	UI.style_button(back, Color("6b4fd0"), Color.WHITE, 30)
-	back.pressed.connect(func():
-		if sfx: sfx.play("tap")
-		battle_over.emit(player_won))
-	_ui_root.add_child(back)
+	# hand back to the run controller: it shows the boon pick (win) or run-over (lose)
+	await get_tree().create_timer(_t(1.35)).timeout
+	round_over.emit(player_won, player_hp)
+	battle_over.emit(player_won)   # kept for any standalone listener
 
 func debug_attack(use_ability: bool = false) -> void:
 	_player_act("ability" if use_ability else "attack")
