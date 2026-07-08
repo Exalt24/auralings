@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://auralings_testlogic"]
+
+[ext_resource type="Script" path="res://tools/test_logic.gd" id="1_tl"]
+
+[node name="TestLogic" type="Node2D"]
+script = ExtResource("1_tl")
