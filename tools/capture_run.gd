@@ -3,6 +3,7 @@ extends Node2D
 const CreatureGenScript = preload("res://scripts/CreatureGen.gd")
 const BoonChoiceScript = preload("res://scripts/BoonChoice.gd")
 const RunOverScript = preload("res://scripts/RunOver.gd")
+const ShopViewScript = preload("res://scripts/ShopView.gd")
 
 func _ready() -> void:
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path("res://_shots"))
@@ -28,4 +29,17 @@ func _ready() -> void:
 	for i in 20: await get_tree().process_frame
 	await RenderingServer.frame_post_draw
 	get_viewport().get_texture().get_image().save_png("res://_shots/runover.png")
+	ro.queue_free()
+	for i in 4: await get_tree().process_frame
+
+	var shop = ShopViewScript.new()
+	shop.setup(18, {"vigor":1,"might":0,"insight":0}, [
+		{"id":"vigor","name":"Vigor","desc":"+8 champion start HP per level","max":3,"cost":[4,8,14]},
+		{"id":"might","name":"Might","desc":"+2 champion start ATK per level","max":3,"cost":[5,10,16]},
+		{"id":"insight","name":"Insight","desc":"Draft 4 boons instead of 3","max":1,"cost":[12]},
+	])
+	add_child(shop)
+	for i in 20: await get_tree().process_frame
+	await RenderingServer.frame_post_draw
+	get_viewport().get_texture().get_image().save_png("res://_shots/shop.png")
 	get_tree().quit()
