@@ -70,12 +70,18 @@ func _build_chrome() -> void:
 func _render() -> void:
 	for ch in _rows_root.get_children():
 		ch.queue_free()
-	var y := 210.0
+	# lay the cards out in a centered VBox that fills the space between the header and the
+	# BACK button, with generous spacing — was hand-placed at the top with a big dead void
+	var box := VBoxContainer.new()
+	box.position = Vector2(50, 200)
+	box.size = Vector2(W - 100, H - 200 - 168)
+	box.add_theme_constant_override("separation", 30)
+	box.alignment = BoxContainer.ALIGNMENT_CENTER
+	_rows_root.add_child(box)
 	for d in defs:
-		_rows_root.add_child(_row(d, y))
-		y += 208.0
+		box.add_child(_row(d))
 
-func _row(d: Dictionary, y: float) -> PanelContainer:
+func _row(d: Dictionary) -> PanelContainer:
 	var id := String(d["id"])
 	var lvl := int(upgrades.get(id, 0))
 	var mx := int(d["max"])
@@ -85,14 +91,16 @@ func _row(d: Dictionary, y: float) -> PanelContainer:
 
 	var card := PanelContainer.new()
 	card.add_theme_stylebox_override("panel", UI.panel(UI.CARD, 18, Color(1, 1, 1, 0.06), 2, 6))
-	card.position = Vector2(50, y); card.size = Vector2(W - 100, 188)
+	card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	card.custom_minimum_size = Vector2(0, 196)
 	var pad := MarginContainer.new()
 	pad.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	for m in ["left", "right", "top", "bottom"]:
 		pad.add_theme_constant_override("margin_" + m, 18)
 	card.add_child(pad)
 	var vb := VBoxContainer.new()
-	vb.add_theme_constant_override("separation", 6)
+	vb.add_theme_constant_override("separation", 10)
+	vb.alignment = BoxContainer.ALIGNMENT_CENTER
 	pad.add_child(vb)
 	var titlerow := HBoxContainer.new()
 	vb.add_child(titlerow)
