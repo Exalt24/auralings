@@ -52,10 +52,12 @@ func _build() -> void:
 	view.set_creature(champion)
 	view.fit_to(120.0)
 
-	# 3 boon cards, stacked, container-spaced
+	# boon cards, centered in the region below the portrait so they fill the space
+	# (handles 3 or 4 cards) instead of clustering high with a dead void beneath
 	var col := VBoxContainer.new()
-	col.position = Vector2(60, 520); col.size = Vector2(W - 120, 640)
-	col.add_theme_constant_override("separation", 22)
+	col.position = Vector2(60, 450); col.size = Vector2(W - 120, H - 450 - 60)
+	col.add_theme_constant_override("separation", 24)
+	col.alignment = BoxContainer.ALIGNMENT_CENTER
 	add_child(col)
 	for b in boons:
 		col.add_child(_card(b))
