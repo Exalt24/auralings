@@ -15,18 +15,29 @@ func _ready() -> void:
 	ro.setup(champ, 7, 7, true, 7)
 	add_child(ro)
 
-	# --- exact replica of the SHARE toast from Main.gd ---
+	# --- replica of the new styled-pill SHARE toast from Main.gd ---
+	var CheckIconScript = preload("res://scripts/CheckIcon.gd")
 	var toast_layer := CanvasLayer.new()
 	toast_layer.layer = 51
 	add_child(toast_layer)
-	var toast_label = UI.label("copied to clipboard!", 26, UI.MINT, HORIZONTAL_ALIGNMENT_CENTER)
-	toast_label.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
-	toast_label.offset_left = 40; toast_label.offset_right = -40
-	toast_label.offset_top = -120; toast_label.offset_bottom = -70
-	toast_label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.85))
-	toast_label.add_theme_constant_override("outline_size", 8)
-	toast_label.modulate.a = 1.0
-	toast_layer.add_child(toast_label)
+	var toast_holder := Control.new()
+	toast_holder.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
+	toast_holder.offset_top = -150; toast_holder.offset_bottom = -70
+	toast_layer.add_child(toast_holder)
+	var center := CenterContainer.new()
+	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	toast_holder.add_child(center)
+	var tp := PanelContainer.new()
+	tp.add_theme_stylebox_override("panel", UI.panel(Color("241d40"), 26, Color(0.62, 0.94, 0.82, 0.55), 2, 16))
+	center.add_child(tp)
+	var trow := HBoxContainer.new()
+	trow.add_theme_constant_override("separation", 12)
+	trow.alignment = BoxContainer.ALIGNMENT_CENTER
+	tp.add_child(trow)
+	trow.add_child(CheckIconScript.new())
+	var toast_label = UI.label("copied to clipboard!", 25, UI.TEXT, HORIZONTAL_ALIGNMENT_CENTER)
+	toast_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	trow.add_child(toast_label)
 
 	# --- exact replica of the achievement toast from Main.gd ---
 	var ach_layer := CanvasLayer.new()
