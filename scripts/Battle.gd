@@ -172,13 +172,13 @@ func _build() -> void:
 	charge_btn.pressed.connect(func(): _player_act("charge"))
 
 	turbo_btn = Button.new()
-	turbo_btn.text = "TURBO: OFF"
+	turbo_btn.text = "SPEED: 1x"
 	turbo_btn.custom_minimum_size = Vector2(0, 44)
 	turbo_btn.toggle_mode = true
 	UI.style_button(turbo_btn, UI.INK_SOFT, UI.TEXT_DIM, 20)
 	turbo_btn.toggled.connect(func(on):
 		turbo = on
-		turbo_btn.text = "TURBO: ON" if on else "TURBO: OFF"
+		turbo_btn.text = "SPEED: 3x" if on else "SPEED: 1x"
 		if sfx: sfx.play("tap"))
 	vb.add_child(turbo_btn)
 

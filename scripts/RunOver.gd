@@ -64,8 +64,8 @@ func _build() -> void:
 
 	# buttons
 	var row := VBoxContainer.new()
-	row.position = Vector2(60, H - 320); row.size = Vector2(W - 120, 290)
-	row.add_theme_constant_override("separation", 14)
+	row.position = Vector2(60, H - 330); row.size = Vector2(W - 120, 300)
+	row.add_theme_constant_override("separation", 24)
 	add_child(row)
 	var top := HBoxContainer.new()
 	top.add_theme_constant_override("separation", 14)

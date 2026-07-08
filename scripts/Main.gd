@@ -160,11 +160,20 @@ func _build_ui() -> void:
 	hint_label.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
 	hint_label.offset_top = -60; hint_label.offset_bottom = -30
 	stage.add_child(hint_label)
-	toast_label = UI.label("", 24, UI.MINT, HORIZONTAL_ALIGNMENT_CENTER)
+	# toast lives on its own CanvasLayer so it shows over EVERY screen (summon is
+	# hidden during battle/boon/run-over, so a summon-parented toast would be invisible
+	# there — that's why SHARE on the run-over screen gave no feedback)
+	var toast_layer := CanvasLayer.new()
+	toast_layer.layer = 51
+	add_child(toast_layer)
+	toast_label = UI.label("", 26, UI.MINT, HORIZONTAL_ALIGNMENT_CENTER)
 	toast_label.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
-	toast_label.offset_top = -28; toast_label.offset_bottom = 2
+	toast_label.offset_left = 40; toast_label.offset_right = -40
+	toast_label.offset_top = -120; toast_label.offset_bottom = -70
+	toast_label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.85))
+	toast_label.add_theme_constant_override("outline_size", 8)
 	toast_label.modulate.a = 0.0
-	stage.add_child(toast_label)
+	toast_layer.add_child(toast_label)
 
 	# --- info card ---
 	var card := PanelContainer.new()
