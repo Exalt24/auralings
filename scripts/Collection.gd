@@ -50,58 +50,72 @@ func _draw() -> void:
 		draw_rect(Rect2(0, H * t, W, H / steps + 1), top.lerp(bot, t))
 
 func _build_chrome() -> void:
-	var title := UI.label("BESTIARY", 42, UI.GOLD, HORIZONTAL_ALIGNMENT_CENTER)
-	title.position = Vector2(0, 46); title.size = Vector2(W, 50)
-	add_child(title)
-	var sub := UI.label("%d discovered" % entries.size(), 22, UI.MINT, HORIZONTAL_ALIGNMENT_CENTER)
-	sub.position = Vector2(0, 100); sub.size = Vector2(W, 26)
-	add_child(sub)
-
-	# rarity legend
+	# header as a top-anchored container (title / discovered / legend) — spaced, not
+	# hand-positioned
+	var head := VBoxContainer.new()
+	head.position = Vector2(40, 44)
+	head.size = Vector2(W - 80, 120)
+	head.add_theme_constant_override("separation", 6)
+	add_child(head)
+	head.add_child(UI.label("BESTIARY", 42, UI.GOLD, HORIZONTAL_ALIGNMENT_CENTER))
+	head.add_child(UI.label("%d discovered" % entries.size(), 22, UI.MINT, HORIZONTAL_ALIGNMENT_CENTER))
 	var legend := HBoxContainer.new()
 	legend.add_theme_constant_override("separation", 18)
-	legend.position = Vector2(0, 132); legend.size = Vector2(W, 26)
 	legend.alignment = BoxContainer.ALIGNMENT_CENTER
-	add_child(legend)
+	head.add_child(legend)
 	for r in ["rare", "epic", "legendary"]:
 		var dot := UI.label("• " + r, 15, UI.rarity_color(r))
 		legend.add_child(dot)
 
-	# sort toggle (newest / rarity). No search or filter — at this collection size that
-	# would be over-engineering; a sort is the one control that pays off on a paged grid.
+	# bottom footer, built as a spaced container (no magic-number stacking): a centered
+	# sort toggle (newest/rarity — no search/filter, that's over-engineering at this
+	# size), the page indicator, then an even PREV / BACK / NEXT row.
+	# explicit position+size (this is parented to a Node2D, so bottom anchors don't
+	# resolve; the VBox still spaces its children evenly within the rect)
+	var footer := VBoxContainer.new()
+	footer.position = Vector2(40, H - 236)
+	footer.size = Vector2(W - 80, 204)
+	footer.add_theme_constant_override("separation", 14)
+	add_child(footer)
+
+	var sort_center := CenterContainer.new()
+	footer.add_child(sort_center)
 	_sort_btn = Button.new()
 	_sort_btn.text = "SORT: NEWEST"
-	_sort_btn.position = Vector2(W * 0.5 - 130, 1024); _sort_btn.size = Vector2(260, 42)
+	_sort_btn.custom_minimum_size = Vector2(260, 50)
 	UI.style_button(_sort_btn, UI.INK_SOFT, UI.MINT, 20)
 	_sort_btn.pressed.connect(_toggle_sort)
-	add_child(_sort_btn)
+	sort_center.add_child(_sort_btn)
 
 	_page_label = UI.label("", 20, UI.TEXT_DIM, HORIZONTAL_ALIGNMENT_CENTER)
-	_page_label.position = Vector2(0, 1074); _page_label.size = Vector2(W, 28)
-	add_child(_page_label)
+	footer.add_child(_page_label)
 
+	var nav := HBoxContainer.new()
+	nav.add_theme_constant_override("separation", 16)
+	footer.add_child(nav)
 	_prev_btn = Button.new()
 	_prev_btn.text = "< PREV"
-	_prev_btn.position = Vector2(40, 1116); _prev_btn.size = Vector2(180, 64)
+	_prev_btn.custom_minimum_size = Vector2(0, 66)
+	_prev_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	UI.style_button(_prev_btn, UI.INK_SOFT, UI.TEXT, 24)
 	_prev_btn.pressed.connect(func(): _turn(-1))
-	add_child(_prev_btn)
-
-	_next_btn = Button.new()
-	_next_btn.text = "NEXT >"
-	_next_btn.position = Vector2(W - 220, 1116); _next_btn.size = Vector2(180, 64)
-	UI.style_button(_next_btn, UI.INK_SOFT, UI.TEXT, 24)
-	_next_btn.pressed.connect(func(): _turn(1))
-	add_child(_next_btn)
-
+	nav.add_child(_prev_btn)
 	var back := Button.new()
 	back.text = "BACK"
-	back.position = Vector2(W * 0.5 - 130, 1116); back.size = Vector2(260, 64)
+	back.custom_minimum_size = Vector2(0, 66)
+	back.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	UI.style_button(back, Color("6b4fd0"), Color.WHITE, 26)
 	back.pressed.connect(func():
 		if sfx: sfx.play("tap")
 		closed.emit())
-	add_child(back)
+	nav.add_child(back)
+	_next_btn = Button.new()
+	_next_btn.text = "NEXT >"
+	_next_btn.custom_minimum_size = Vector2(0, 66)
+	_next_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	UI.style_button(_next_btn, UI.INK_SOFT, UI.TEXT, 24)
+	_next_btn.pressed.connect(func(): _turn(1))
+	nav.add_child(_next_btn)
 
 func _turn(dir: int) -> void:
 	var pages := int(ceil(float(_order.size()) / PAGE))
