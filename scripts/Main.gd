@@ -405,10 +405,13 @@ func _on_identity_ready(seed_val: int, identity: Dictionary) -> void:
 		name_label.text = String(identity["name"])
 		current_creature["name"] = String(identity["name"])
 		_update_collection_name(seed_val, String(identity["name"]))
+	# keep the sub-line PURELY mechanical (element · role); the AI epithet is flavor, so
+	# fold it into the lore line instead of mixing it in with the stat tags
 	var title := String(identity.get("title", ""))
+	var lore_txt := String(identity.get("lore", lore_label.text))
 	if title.length() > 0:
-		sub_label.text = title + "  ·  " + sub_label.text
-	lore_label.text = String(identity.get("lore", lore_label.text))
+		lore_txt = "\"%s.\"  %s" % [title, lore_txt]
+	lore_label.text = lore_txt
 	var abil_name := String(identity.get("ability_name", ""))
 	if abil_name.length() > 0:
 		# keep the AI's cool move NAME, but describe the true mechanic (all abilities are
