@@ -88,6 +88,10 @@ var _ach_panel: PanelContainer
 var _ach_queue: Array = []
 var _ach_busy := false
 var _share_cb = null
+const CheckIconScript = preload("res://scripts/CheckIcon.gd")
+var _toast_layer: CanvasLayer
+var _toast_panel: PanelContainer
+var _toast_tw: Tween = null
 var _ach_label: Label
 var _ach_view = null
 var _summons_done := 0
@@ -165,18 +169,34 @@ func _build_ui() -> void:
 	stage.add_child(hint_label)
 	# toast lives on its own CanvasLayer so it shows over EVERY screen (summon is
 	# hidden during battle/boon/run-over, so a summon-parented toast would be invisible
-	# there — that's why SHARE on the run-over screen gave no feedback)
-	var toast_layer := CanvasLayer.new()
-	toast_layer.layer = 51
-	add_child(toast_layer)
-	toast_label = UI.label("", 26, UI.MINT, HORIZONTAL_ALIGNMENT_CENTER)
-	toast_label.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
-	toast_label.offset_left = 40; toast_label.offset_right = -40
-	toast_label.offset_top = -120; toast_label.offset_bottom = -70
-	toast_label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.85))
-	toast_label.add_theme_constant_override("outline_size", 8)
-	toast_label.modulate.a = 0.0
-	toast_layer.add_child(toast_label)
+	# there — that's why SHARE on the run-over screen gave no feedback). Styled as a
+	# rounded pill w/ icon + shadow, centered at the bottom, slide+overshoot in/out.
+	_toast_layer = CanvasLayer.new()
+	_toast_layer.layer = 51
+	add_child(_toast_layer)
+	var toast_holder := Control.new()
+	toast_holder.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
+	toast_holder.offset_top = -150; toast_holder.offset_bottom = -70
+	toast_holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_toast_layer.add_child(toast_holder)
+	var center := CenterContainer.new()
+	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	toast_holder.add_child(center)
+	_toast_panel = PanelContainer.new()
+	_toast_panel.add_theme_stylebox_override("panel", UI.panel(Color("241d40"), 26, Color(0.62, 0.94, 0.82, 0.55), 2, 16))
+	_toast_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_toast_panel.modulate.a = 0.0
+	center.add_child(_toast_panel)
+	var trow := HBoxContainer.new()
+	trow.add_theme_constant_override("separation", 12)
+	trow.alignment = BoxContainer.ALIGNMENT_CENTER
+	_toast_panel.add_child(trow)
+	var tcheck := CheckIconScript.new()
+	trow.add_child(tcheck)
+	toast_label = UI.label("", 25, UI.TEXT, HORIZONTAL_ALIGNMENT_CENTER)
+	toast_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	trow.add_child(toast_label)
 
 	# --- info card ---
 	var card := PanelContainer.new()
@@ -701,7 +721,20 @@ func _share_line(line: String, link: String) -> void:
 
 func _toast(msg: String) -> void:
 	toast_label.text = msg
-	toast_label.modulate.a = 1.0
-	var tw := create_tween()
-	tw.tween_interval(1.3)
-	tw.tween_property(toast_label, "modulate:a", 0.0, 0.6)
+	if _toast_tw != null and _toast_tw.is_valid():
+		_toast_tw.kill()
+	var reduced := Settings.reduced_motion
+	_toast_panel.modulate.a = 0.0
+	_toast_layer.offset = Vector2(0, 0.0 if reduced else 44.0)
+	_toast_tw = create_tween()
+	# enter: fade in + slide up with a soft overshoot landing (Ease-Out-Back)
+	_toast_tw.tween_property(_toast_panel, "modulate:a", 1.0, 0.28).set_ease(Tween.EASE_OUT)
+	if not reduced:
+		_toast_tw.parallel().tween_property(_toast_layer, "offset", Vector2.ZERO, 0.42) \
+			.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	# hold
+	_toast_tw.tween_interval(1.5)
+	# exit: fade out + drift down
+	_toast_tw.tween_property(_toast_panel, "modulate:a", 0.0, 0.34).set_ease(Tween.EASE_IN)
+	if not reduced:
+		_toast_tw.parallel().tween_property(_toast_layer, "offset", Vector2(0, 22), 0.34).set_ease(Tween.EASE_IN)
