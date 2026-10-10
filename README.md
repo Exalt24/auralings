@@ -4,6 +4,10 @@ An AI-native roguelite creature collector built in Godot 4.6 and playable in the
 
 **Play it live: https://auralings.vercel.app**
 
+<img src="docs/summon.png" alt="A summoned creature: a seed-drawn body with a name, epithet, lore line and ability written by the language model" width="320">
+
+*One summon on the live build. The body is drawn by code from the seed; the name, epithet, lore line and signature move came back from the language model through the serverless proxy.*
+
 ## The Game
 
 The core loop is a run called **The Gauntlet**:
