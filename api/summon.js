@@ -43,19 +43,25 @@ function allow(ip) {
   return true;
 }
 
+// The model is a SETTING, not a literal: Groq retired llama-3.3-70b-versatile in early September 2026 and this endpoint kept answering {} (graceful
+// fallback), so the game ran on with no LLM names or lore and nothing said so. The next retirement is now an environment change (GROQ_MODEL).
+const MODEL = process.env.GROQ_MODEL || "openai/gpt-oss-120b";
+
 async function callGroq(key, usr, signal) {
   return fetch("https://api.groq.com/openai/v1/chat/completions", {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
     body: JSON.stringify({
-      model: "llama-3.3-70b-versatile",
+      model: MODEL,
       messages: [
         { role: "system", content: SYS },
         { role: "user", content: usr },
       ],
       response_format: { type: "json_object" },
       temperature: 1.1,
-      max_tokens: 220,
+      // gpt-oss reasons before it answers and the reasoning counts against max_tokens, so a small budget returns an empty message
+      reasoning_effort: "low",
+      max_tokens: 900,
     }),
     signal,
   });
@@ -101,6 +107,7 @@ module.exports = async (req, res) => {
     let identity;
     try { identity = JSON.parse(content); } catch (_) { identity = {}; }
     if (!identity || typeof identity !== "object") identity = {};
+    if (!identity.name) { res.status(200).json({}); return; } // a failed or empty authoring is never cached next to good ones
     if (CACHE.size >= CACHE_MAX) CACHE.delete(CACHE.keys().next().value); // evict oldest
     CACHE.set(cacheKey, identity);
     res.status(200).json(identity);

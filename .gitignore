@@ -21,3 +21,7 @@ node_modules/
 # Godot re-imports the exported pngs since public/ sits inside the project;
 # those sidecars are noise, not part of the deployed site.
 public/**/*.import
+
+# working notes kept locally, not published (they named a hiring contact and a self-assessment)
+PROGRESS.md
+TEST_CHECKLIST.md
