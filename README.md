@@ -1,12 +1,12 @@
 # Auralings
 
+![Summoning four creatures in a row: each seed draws a different body in code and a name and lore line appear on the card](docs/demo.gif)
+
+*Four summons in the Godot web build: the body is drawn from the seed, and the name, epithet and lore come from the language model (recorded locally with the model call answered by a stand-in).*
+
 An AI-native roguelite creature collector built in Godot 4.6 and playable in the browser. Every creature is generated twice: a deterministic seed draws its body (shape, palette, element, rarity), and a Groq-hosted LLM writes its soul (name, epithet, lore). Same seed, same creature, every time, so the world is procedural but stable.
 
 **Play it live: https://auralings.vercel.app**
-
-<img src="docs/summon.png" alt="A summoned creature: a seed-drawn body with a name, epithet, lore line and ability written by the language model" width="320">
-
-*One summon on the live build. The body is drawn by code from the seed; the name, epithet, lore line and signature move came back from the language model through the serverless proxy.*
 
 ## The Game
 
