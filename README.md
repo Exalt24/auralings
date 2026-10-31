@@ -56,7 +56,7 @@ godot --path . --headless res://tools/BalanceSim.tscn
 
 `TestLogic` runs the real Main scene and prints PASS or FAIL for six groups: upgrades carrying into a run, the effect of each boon, the end of a run returning to the summon screen, champion levelling across re-summons, the underdog Essence multiplier, and role and trait validity across 10 seeds. All six printed PASS on 2026-10-17; it takes about 3.5 minutes headless. `BalanceSim` runs 3,000 gauntlets in a few seconds and prints the streak distribution by role and rarity. There is no CI workflow.
 
-## Limits and not done
+## Limits
 
 - The model writes text only. Every ability is the same signature strike for 1.8x damage; the model just names it.
 - A seed always draws the same body and stats, but the name and lore are generated at temperature 1.1, so the same seed can read differently on two summons.
